@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Optimal Weekday</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1b1d1c;
+      --muted: #626a66;
+      --line: #d9ddd5;
+      --paper: #f7f6f0;
+      --surface: #ffffff;
+      --forest: #214f3c;
+      --moss: #78904f;
+      --clay: #b86948;
+      --gold: #d3a642;
+      --blue: #426a8d;
+      --violet: #7a5a8c;
+      --shadow: 0 18px 55px rgba(31, 34, 29, .13);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 36%),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 246, 240, .86);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 4;
+    }
+
+    .bar {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      min-height: 74px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 1.2rem + 1.3vw, 2.55rem);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .controls {
+      display: flex;
+      align-items: end;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    input[type="time"] {
+      appearance: none;
+      border: 1px solid #c8cec5;
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 42px;
+      padding: 0 12px;
+      min-width: 132px;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, .7);
+    }
+
+    .toggle {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      border: 1px solid #c8cec5;
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: .92rem;
+      font-weight: 720;
+      text-transform: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--forest);
+      flex: 0 0 auto;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 46px;
+      display: grid;
+      grid-template-columns: minmax(280px, 390px) 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .now-panel {
+      position: sticky;
+      top: 96px;
+      overflow: hidden;
+    }
+
+    .state-band {
+      min-height: 12px;
+      background: var(--state-color, var(--forest));
+    }
+
+    .now-body {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .state-name {
+      margin: 0;
+      font-size: clamp(2rem, 1.5rem + 2vw, 4rem);
+      line-height: .95;
+      letter-spacing: 0;
+    }
+
+    .current-work {
+      margin: 0;
+      font-size: 1.08rem;
+      line-height: 1.45;
+      color: #303531;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .metric {
+      padding: 13px;
+      min-height: 78px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric:nth-child(even) {
+      border-right: 0;
+    }
+
+    .metric:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      font-size: 1.02rem;
+      overflow-wrap: anywhere;
+    }
+
+    .work-list {
+      display: grid;
+      gap: 10px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .work-list li {
+      display: grid;
+      grid-template-columns: 9px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: #303531;
+      line-height: 1.35;
+    }
+
+    .work-list li::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      margin-top: .36em;
+      border-radius: 50%;
+      background: var(--state-color, var(--forest));
+    }
+
+    .timeline-panel {
+      padding: 20px;
+    }
+
+    .timeline-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0;
+    }
+
+    .total {
+      color: var(--muted);
+      font-size: .92rem;
+      white-space: nowrap;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+      position: relative;
+    }
+
+    .time {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: .88rem;
+      line-height: 1.25;
+      padding-top: 12px;
+      text-align: right;
+    }
+
+    .task {
+      border: 1px solid var(--line);
+      border-left: 7px solid var(--row-color);
+      border-radius: 8px;
+      background: #fff;
+      min-height: 76px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 7px;
+      transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .row.active .task {
+      border-color: color-mix(in srgb, var(--row-color), #1b1d1c 12%);
+      box-shadow: 0 10px 28px rgba(33, 79, 60, .17);
+      transform: translateY(-1px);
+    }
+
+    .section {
+      color: var(--row-color);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .task-title {
+      color: var(--ink);
+      font-weight: 760;
+      line-height: 1.3;
+    }
+
+    .task-note {
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.35;
+    }
+
+    .progress-shell {
+      height: 8px;
+      border-radius: 999px;
+      background: #e7e9e2;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      width: var(--progress, 0%);
+      background: var(--row-color);
+    }
+
+    @media (max-width: 840px) {
+      .bar {
+        grid-template-columns: 1fr;
+        padding: 16px 0;
+        gap: 14px;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .now-panel {
+        position: relative;
+        top: 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .bar,
+      main {
+        width: min(100vw - 20px, 1180px);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+
+      .toggle {
+        grid-column: 1 / -1;
+      }
+
+      input[type="time"] {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .timeline-panel {
+        padding: 14px;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .time {
+        text-align: left;
+        padding-top: 2px;
+      }
+
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metric,
+      .metric:nth-child(even),
+      .metric:nth-last-child(-n + 2) {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metric:last-child {
+        border-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="bar">
+        <h1>Optimal Weekday</h1>
+        <div class="controls" aria-label="Schedule controls">
+          <label>
+            Wake
+            <input id="wakeTime" type="time" value="06:00">
+          </label>
+          <label class="toggle">
+            <input id="homeDeepWork" type="checkbox">
+            Deep work at home first
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel now-panel" aria-live="polite">
+        <div class="state-band"></div>
+        <div class="now-body">
+          <div>
+            <p class="eyebrow">Current cognitive state</p>
+            <h2 id="stateName" class="state-name">Creation</h2>
+          </div>
+          <p id="currentWork" class="current-work"></p>
+          <div class="meta-grid">
+            <div class="metric">
+              <span>Block</span>
+              <strong id="blockTime"></strong>
+            </div>
+            <div class="metric">
+              <span>Since Wake</span>
+              <strong id="elapsed"></strong>
+            </div>
+            <div class="metric">
+              <span>Next Shift</span>
+              <strong id="nextShift"></strong>
+            </div>
+            <div class="metric">
+              <span>Focus</span>
+              <strong id="focusMode"></strong>
+            </div>
+          </div>
+          <div>
+            <p class="eyebrow">Best work right now</p>
+            <ul id="bestWork" class="work-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel timeline-panel">
+        <div class="timeline-head">
+          <h2>Day Map</h2>
+          <div id="dayTotal" class="total"></div>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const sectionTemplates = [
+      {
+        heading: "Priming",
+        color: "#78904f",
+        state: "Priming",
+        focus: "Ramp up",
+        work: [
+          "Light movement, hydration, meditation, getting ready",
+          "Task planning without opening the inbox",
+          "Affirmations and commute/walk rhythm"
+        ],
+        items: [
+          { label: "Wake up with light dynamic movement", duration: 10 },
+          { label: "Hydrate with 10g creatine in 16oz water and meditation", duration: 15 },
+          { label: "Get ready and repeat affirmations", duration: 20 },
+          { label: "Walk to work and repeat affirmations", duration: 20 },
+          { label: "Light breakfast and plan top tasks without looking", duration: 10 }
+        ]
+      },
+      {
+        heading: "Creation",
+        color: "#214f3c",
+        state: "Creation",
+        focus: "Morning Focus",
+        work: [
+          "Deep work: writing, thinking, ideas, analysis",
+          "Precisely scoped research that directly feeds output",
+          "Communications only after the first creation block"
+        ],
+        items: [
+          { label: "First coffee and deep work", duration: 100, note: "Writing, thinking, ideas, analysis" },
+          { label: "Engagement and communications", duration: 90, note: "Morning Focus off", focus: "Communications" }
+        ]
+      },
+      {
+        heading: "Execution",
+        color: "#426a8d",
+        state: "Execution",
+        focus: "Directed output",
+        work: [
+          "Maintenance after the second coffee window",
+          "Follow-ups, materials, and internal coordination",
+          "Anki and walking as a light reset"
+        ],
+        items: [
+          { label: "Second coffee and maintenance", duration: 30 },
+          { label: "Half lunch, walk and Anki", duration: 30, note: "Light reset, not full cognitive disengagement" },
+          { label: "Execution block, optional Zyn", duration: 120, note: "Follow-ups, materials, internal coordination", focus: "Optional Zyn" }
+        ]
+      },
+      {
+        heading: "Reaction",
+        color: "#b86948",
+        state: "Reaction",
+        focus: "Responsive",
+        work: [
+          "Reactive items and meetings",
+          "Lower-cognitive tasks that benefit from momentum",
+          "Short break first: food, breath, walk, talk, stretch"
+        ],
+        items: [
+          { label: "Break", duration: 20, note: "Other half lunch, breathe, walk, talk, and stretch" },
+          { label: "Opportunistic work", duration: 90, note: "Reactive items, meetings, lower-cognitive tasks" }
+        ]
+      },
+      {
+        heading: "Maintenance",
+        color: "#d3a642",
+        state: "Maintenance",
+        focus: "Close loops",
+        work: [
+          "Pipeline upkeep and inbox cleaning",
+          "Journal, reflection, and tomorrow setup",
+          "Administrative closure instead of new deep work"
+        ],
+        items: [
+          { label: "Second half of lunch and maintenance", duration: 30 },
+          { label: "Maintenance", duration: 30, note: "Pipeline, clean inbox" },
+          { label: "Wrap up", duration: 30, note: "Journal, reflect, check tomorrow, determine affirmations for tomorrow" }
+        ]
+      },
+      {
+        heading: "Rest",
+        color: "#7a5a8c",
+        state: "Rest",
+        focus: "Recover",
+        work: [
+          "Decompressing walk, workout, shower, stretching",
+          "Light work, reading, or maintenance only if it stays low-stimulation",
+          "Dinner, wind down, and sleep protection"
+        ],
+        items: [
+          { label: "Walk home", duration: 20, note: "Decompress, Anki" },
+          { label: "Workout then shower", duration: 60 },
+          { label: "Stretch", duration: 15 },
+          { label: "Optional block", duration: 60, note: "Light work, reading, maintenance" },
+          { label: "Dinner with Marissa", duration: 20 },
+          { label: "Wind down", duration: 30, note: "Low stimulation, no intense inputs, take AirPods to bed for morning meditation" },
+          { label: "Sleep", duration: 60, derivedSleepWindow: true }
+        ]
+      }
+    ];
+
+    function activeSections(startDeepWorkAtHome) {
+      const sections = sectionTemplates.map((section) => ({
+        ...section,
+        items: section.items.map((item) => ({ ...item }))
+      }));
+
+      if (!startDeepWorkAtHome) return sections;
+
+      const priming = sections.find((section) => section.heading === "Priming");
+      const creation = sections.find((section) => section.heading === "Creation");
+      const deepWork = creation.items.shift();
+      deepWork.label = "First coffee and deep work at home";
+      deepWork.section = creation.heading;
+      deepWork.state = creation.state;
+      deepWork.focus = creation.focus;
+      deepWork.work = creation.work;
+      deepWork.color = creation.color;
+
+      priming.items = [
+        priming.items[0],
+        priming.items[1],
+        priming.items[4],
+        deepWork,
+        priming.items[2],
+        priming.items[3]
+      ];
+
+      priming.work = [
+        "Light movement, hydration, meditation, then task planning",
+        "Deep work before the commute/walk pulls the first creation block forward",
+        "Get ready and walk after the output block"
+      ];
+
+      return sections;
+    }
+
+    const els = {
+      wakeTime: document.querySelector("#wakeTime"),
+      homeDeepWork: document.querySelector("#homeDeepWork"),
+      stateName: document.querySelector("#stateName"),
+      currentWork: document.querySelector("#currentWork"),
+      blockTime: document.querySelector("#blockTime"),
+      elapsed: document.querySelector("#elapsed"),
+      nextShift: document.querySelector("#nextShift"),
+      focusMode: document.querySelector("#focusMode"),
+      bestWork: document.querySelector("#bestWork"),
+      timeline: document.querySelector("#timeline"),
+      dayTotal: document.querySelector("#dayTotal"),
+      stateBand: document.querySelector(".state-band"),
+      nowPanel: document.querySelector(".now-panel")
+    };
+
+    const minutesPerDay = 24 * 60;
+
+    function parseClock(raw) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(raw);
+      if (!match) return null;
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+      return hour * 60 + minute;
+    }
+
+    function formatClock(totalMinutes) {
+      const normalized = ((totalMinutes % minutesPerDay) + minutesPerDay) % minutesPerDay;
+      const hour = Math.floor(normalized / 60);
+      const minute = normalized % 60;
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    function formatDuration(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const remainder = minutes % 60;
+      if (hours && remainder) return `${hours}h ${remainder}m`;
+      if (hours) return `${hours}h`;
+      return `${remainder}m`;
+    }
+
+    function formatElapsed(minutes) {
+      if (minutes === 0) return "0m";
+      return formatDuration(minutes);
+    }
+
+    function currentClockValue() {
+      const now = new Date();
+      return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    }
+
+    function minutesUntilNextStart(endMinutes, nextStartMinutes) {
+      const sameDayDelta = nextStartMinutes - endMinutes;
+      return sameDayDelta >= 0 ? sameDayDelta : minutesPerDay + sameDayDelta;
+    }
+
+    function buildSchedule(wakeMinutes, startDeepWorkAtHome) {
+      const sections = activeSections(startDeepWorkAtHome);
+      const totalNonSleepMinutes = sections.reduce((sectionTotal, section) => {
+        return sectionTotal + section.items.reduce((itemTotal, item) => {
+          return itemTotal + (item.derivedSleepWindow ? 0 : item.duration);
+        }, 0);
+      }, 0);
+      const computedSleepDuration = minutesUntilNextStart(wakeMinutes + totalNonSleepMinutes, wakeMinutes);
+      let cursor = wakeMinutes;
+      const schedule = [];
+
+      sections.forEach((section) => {
+        section.items.forEach((item) => {
+          const duration = item.derivedSleepWindow ? computedSleepDuration : item.duration;
+          schedule.push({
+            ...item,
+            section: item.section || section.heading,
+            state: item.state || section.state,
+            focus: item.focus || section.focus,
+            work: item.work || section.work,
+            color: item.color || section.color,
+            start: cursor,
+            end: cursor + duration,
+            duration
+          });
+          cursor += duration;
+        });
+      });
+
+      return schedule;
+    }
+
+    function elapsedFromWake(wakeMinutes, currentMinutes) {
+      const delta = currentMinutes - wakeMinutes;
+      return delta >= 0 ? delta : minutesPerDay + delta;
+    }
+
+    function findCurrent(schedule, wakeMinutes, currentMinutes) {
+      const elapsed = elapsedFromWake(wakeMinutes, currentMinutes);
+      const absoluteCurrent = wakeMinutes + elapsed;
+      return schedule.find((item) => absoluteCurrent >= item.start && absoluteCurrent < item.end) || schedule[schedule.length - 1];
+    }
+
+    function render() {
+      const wake = parseClock(els.wakeTime.value) ?? parseClock("06:00");
+      const current = parseClock(currentClockValue());
+      const schedule = buildSchedule(wake, els.homeDeepWork.checked);
+      const currentItem = findCurrent(schedule, wake, current);
+      const elapsed = elapsedFromWake(wake, current);
+      const absoluteCurrent = wake + elapsed;
+      const progress = Math.max(0, Math.min(100, ((absoluteCurrent - currentItem.start) / currentItem.duration) * 100));
+      const nextShiftMinutes = Math.max(0, currentItem.end - absoluteCurrent);
+
+      document.documentElement.style.setProperty("--state-color", currentItem.color);
+      els.nowPanel.style.setProperty("--state-color", currentItem.color);
+      els.stateBand.style.setProperty("--state-color", currentItem.color);
+      els.stateName.textContent = currentItem.state;
+      els.currentWork.textContent = currentItem.note ? `${currentItem.label}: ${currentItem.note}` : currentItem.label;
+      els.blockTime.textContent = `${formatClock(currentItem.start)}-${formatClock(currentItem.end)}`;
+      els.elapsed.textContent = formatElapsed(elapsed);
+      els.nextShift.textContent = nextShiftMinutes ? formatDuration(nextShiftMinutes) : "now";
+      els.focusMode.textContent = currentItem.focus;
+      els.bestWork.innerHTML = currentItem.work.map((item) => `<li>${item}</li>`).join("");
+      els.dayTotal.textContent = `${formatClock(wake)} wake, ${formatClock(wake + minutesPerDay)} next wake`;
+
+      els.timeline.innerHTML = schedule.map((item) => {
+        const isActive = item === currentItem;
+        const rowProgress = isActive ? progress : absoluteCurrent >= item.end ? 100 : 0;
+        const note = item.note ? `<div class="task-note">${item.note}</div>` : "";
+        return `
+          <article class="row ${isActive ? "active" : ""}" style="--row-color: ${item.color}; --progress: ${rowProgress}%">
+            <div class="time">${formatClock(item.start)}<br>${formatClock(item.end)}</div>
+            <div class="task">
+              <div class="section">${item.section} · ${formatDuration(item.duration)}</div>
+              <div class="task-title">${item.label}</div>
+              ${note}
+              <div class="progress-shell" aria-hidden="true"><div class="progress"></div></div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    els.wakeTime.addEventListener("input", render);
+    els.homeDeepWork.addEventListener("input", render);
+
+    render();
+    window.setInterval(() => {
+      render();
+    }, 60 * 1000);
+  </script>
+</body>
+</html>
