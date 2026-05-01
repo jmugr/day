@@ -245,6 +245,35 @@
       background: var(--state-color, var(--forest));
     }
 
+    .window-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .window-card {
+      border: 1px solid var(--line);
+      border-left: 7px solid var(--window-color);
+      border-radius: 8px;
+      padding: 11px 12px;
+      display: grid;
+      gap: 4px;
+      background: #fff;
+    }
+
+    .window-card strong {
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .window-card span {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.3;
+    }
+
     .timeline-panel {
       padding: 20px;
     }
@@ -326,6 +355,27 @@
       color: var(--muted);
       font-size: .9rem;
       line-height: 1.35;
+    }
+
+    .window-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .window-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      padding: 0 8px;
+      border: 1px solid color-mix(in srgb, var(--window-color), #ffffff 36%);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--window-color), #ffffff 88%);
+      color: #262b28;
+      font-size: .78rem;
+      font-weight: 760;
+      line-height: 1;
     }
 
     .progress-shell {
@@ -422,7 +472,7 @@
         <div class="controls" aria-label="Schedule controls">
           <label>
             Wake
-            <input id="wakeTime" type="time" value="06:00">
+            <input id="wakeTime" type="time" value="05:15">
           </label>
           <label class="toggle">
             <input id="homeDeepWork" type="checkbox">
@@ -462,6 +512,10 @@
           <div>
             <p class="eyebrow">Best work right now</p>
             <ul id="bestWork" class="work-list"></ul>
+          </div>
+          <div>
+            <p class="eyebrow">Timing windows</p>
+            <ul id="timingWindows" class="window-list"></ul>
           </div>
         </div>
       </section>
@@ -616,6 +670,62 @@
       return sections;
     }
 
+    const windowTemplates = [
+      {
+        id: "first-coffee",
+        label: "First coffee",
+        color: "#6f4b33",
+        note: "Best near the beginning of the first deep work block.",
+        findStart(schedule) {
+          const deepWork = schedule.find((item) => item.label.includes("First coffee and deep work"));
+          return deepWork ? deepWork.start : null;
+        },
+        duration: 60
+      },
+      {
+        id: "second-coffee",
+        label: "Second coffee",
+        color: "#8b6239",
+        note: "Useful for the maintenance and execution handoff; avoid drifting too late.",
+        findStart(schedule) {
+          const secondCoffee = schedule.find((item) => item.label.includes("Second coffee"));
+          return secondCoffee ? secondCoffee.start : null;
+        },
+        duration: 60
+      },
+      {
+        id: "zyn",
+        label: "Optional Zyn",
+        color: "#426a8d",
+        note: "Only if it supports the execution block instead of pulling you into reactivity.",
+        findStart(schedule) {
+          const execution = schedule.find((item) => item.label.includes("Execution block"));
+          return execution ? execution.start : null;
+        },
+        duration: 75
+      },
+      {
+        id: "water-cutoff",
+        label: "Last big water intake",
+        color: "#4d8794",
+        note: "Finish big hydration 90m before the sleep window.",
+        findStart(schedule, wakeMinutes) {
+          return wakeMinutes + minutesPerDay - 630;
+        },
+        duration: 60
+      },
+      {
+        id: "sleep",
+        label: "Optimal sleep window",
+        color: "#7a5a8c",
+        note: "Protect this as the target bedtime range for the next wake time.",
+        findStart(schedule, wakeMinutes) {
+          return wakeMinutes + minutesPerDay - 540;
+        },
+        duration: 60
+      }
+    ];
+
     const els = {
       wakeTime: document.querySelector("#wakeTime"),
       homeDeepWork: document.querySelector("#homeDeepWork"),
@@ -626,6 +736,7 @@
       nextShift: document.querySelector("#nextShift"),
       focusMode: document.querySelector("#focusMode"),
       bestWork: document.querySelector("#bestWork"),
+      timingWindows: document.querySelector("#timingWindows"),
       timeline: document.querySelector("#timeline"),
       dayTotal: document.querySelector("#dayTotal"),
       stateBand: document.querySelector(".state-band"),
@@ -705,6 +816,18 @@
       return schedule;
     }
 
+    function buildWindows(wakeMinutes, schedule) {
+      return windowTemplates.map((template) => {
+        const start = template.findStart(schedule, wakeMinutes);
+        if (start === null) return null;
+        return {
+          ...template,
+          start,
+          end: start + template.duration
+        };
+      }).filter(Boolean);
+    }
+
     function elapsedFromWake(wakeMinutes, currentMinutes) {
       const delta = currentMinutes - wakeMinutes;
       return delta >= 0 ? delta : minutesPerDay + delta;
@@ -716,10 +839,21 @@
       return schedule.find((item) => absoluteCurrent >= item.start && absoluteCurrent < item.end) || schedule[schedule.length - 1];
     }
 
+    function activeWindowsForCurrent(windows, absoluteCurrent) {
+      return windows
+        .filter((windowItem) => absoluteCurrent >= windowItem.start && absoluteCurrent < windowItem.end)
+        .map((windowItem) => ({ ...windowItem, status: "Open", minutes: windowItem.end - absoluteCurrent }));
+    }
+
+    function windowsForBlock(windows, block) {
+      return windows.filter((windowItem) => windowItem.start < block.end && windowItem.end > block.start);
+    }
+
     function render() {
       const wake = parseClock(els.wakeTime.value) ?? parseClock("06:00");
       const current = parseClock(currentClockValue());
       const schedule = buildSchedule(wake, els.homeDeepWork.checked);
+      const windows = buildWindows(wake, schedule);
       const currentItem = findCurrent(schedule, wake, current);
       const elapsed = elapsedFromWake(wake, current);
       const absoluteCurrent = wake + elapsed;
@@ -736,12 +870,35 @@
       els.nextShift.textContent = nextShiftMinutes ? formatDuration(nextShiftMinutes) : "now";
       els.focusMode.textContent = currentItem.focus;
       els.bestWork.innerHTML = currentItem.work.map((item) => `<li>${item}</li>`).join("");
+      const activeWindows = activeWindowsForCurrent(windows, absoluteCurrent);
+      els.timingWindows.innerHTML = activeWindows.length ? activeWindows.map((windowItem) => {
+        return `
+          <li class="window-card" style="--window-color: ${windowItem.color}">
+            <strong>Open: ${windowItem.label}</strong>
+            <span>${formatClock(windowItem.start)}-${formatClock(windowItem.end)} - ${formatDuration(windowItem.minutes)} left</span>
+            <span>${windowItem.note}</span>
+          </li>
+        `;
+      }).join("") : `
+        <li class="window-card" style="--window-color: #c8cec5">
+          <strong>No timing window open</strong>
+          <span>Upcoming windows are marked in the Day Map.</span>
+        </li>
+      `;
       els.dayTotal.textContent = `${formatClock(wake)} wake, ${formatClock(wake + minutesPerDay)} next wake`;
 
       els.timeline.innerHTML = schedule.map((item) => {
         const isActive = item === currentItem;
         const rowProgress = isActive ? progress : absoluteCurrent >= item.end ? 100 : 0;
         const note = item.note ? `<div class="task-note">${item.note}</div>` : "";
+        const blockWindows = windowsForBlock(windows, item);
+        const windowTags = blockWindows.length
+          ? `<div class="window-tags">${blockWindows.map((windowItem) => `
+              <span class="window-tag" style="--window-color: ${windowItem.color}">
+                ${windowItem.label} ${formatClock(windowItem.start)}-${formatClock(windowItem.end)}
+              </span>
+            `).join("")}</div>`
+          : "";
         return `
           <article class="row ${isActive ? "active" : ""}" style="--row-color: ${item.color}; --progress: ${rowProgress}%">
             <div class="time">${formatClock(item.start)}<br>${formatClock(item.end)}</div>
@@ -749,6 +906,7 @@
               <div class="section">${item.section} · ${formatDuration(item.duration)}</div>
               <div class="task-title">${item.label}</div>
               ${note}
+              ${windowTags}
               <div class="progress-shell" aria-hidden="true"><div class="progress"></div></div>
             </div>
           </article>
