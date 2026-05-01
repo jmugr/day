@@ -1,14 +1,16 @@
-# Optimal Weekday
+# Optimal Windows
 
-A small static website for mapping the current time against an ideal weekday schedule. Enter a wake time, optionally mark that the first deep work block starts at home, and the page shows the current cognitive state, best work for the moment, active timing windows, and the full day map.
+A small static website for mapping the current time against flexible daily timing windows instead of rigid work blocks. Enter a wake time, optionally set a target next wake time for sleep planning, and the page shows which windows are open now, what fits those windows, and what is coming next.
 
 ## What It Does
 
 - Calculates the day from a configurable wake time.
-- Shows the current cognitive state based on the local machine clock.
-- Supports a `Deep work at home first` mode that moves the first creation block before the commute.
-- Displays timing windows for coffee, optional Zyn, water cutoff, and sleep without making them consume schedule time.
-- Marks timing windows on the Day Map wherever they overlap a block.
+- Supports an optional target next wake time to calculate the optimal sleep window without changing the visible 24-hour calendar.
+- Shows the strongest active window based on the local machine clock.
+- Tracks optimal windows for sleep, naps, coffee, task types, optional Zyn, alcohol, workout, and wind-down.
+- Lets optional windows be shown or hidden.
+- Displays every window as a foreground card in a calendar-style day view.
+- Places overlapping windows into side-by-side lanes without making them consume schedule time.
 
 ## Running Locally
 
@@ -20,74 +22,58 @@ start .\index.html
 
 The app is fully client-side and uses only HTML, CSS, and JavaScript.
 
-## Deploying To GitHub Pages
+## Calendar Behavior
 
-1. Push this repository to GitHub.
-2. Open the repository settings in GitHub.
-3. Go to `Pages`.
-4. Set the source to `Deploy from a branch`.
-5. Choose the `main` branch and `/root` folder.
-6. Save and wait for GitHub Pages to publish the site.
+The calendar always renders a 24-hour wake cycle, from `Wake` to the same clock time the next day. The optional `Target next wake` field does not clip or resize the visible day. It only recalculates the optimal sleep window:
 
-The published URL will usually look like:
+- With no target next wake, sleep defaults to `21:00-22:00`.
+- With a target next wake, sleep becomes the 8-9 hour window before that target.
+- Target next wake times close after the wake time are treated as tomorrow's wake. For example, `Wake 05:15` and `Target next wake 05:16` means tomorrow at `05:16`, so sleep is `20:16-21:16`.
 
-```text
-https://YOUR_USERNAME.github.io/REPOSITORY_NAME/
-```
+All windows render in the foreground. If windows overlap, the app assigns them side-by-side lanes so each window remains directly visible.
 
-## Editing The Schedule
+## Editing Windows
 
-The main schedule lives in `sectionTemplates` inside `index.html`.
-
-Each section has:
-
-- `heading`: the schedule section name.
-- `color`: the color used in the timeline.
-- `state`: the cognitive state shown in the current panel.
-- `focus`: the mode or working posture for that section.
-- `work`: the recommended work list.
-- `items`: the ordered tasks and durations.
-
-Example item:
-
-```js
-{ label: "First coffee and deep work", duration: 100, note: "Writing, thinking, ideas, analysis" }
-```
-
-Durations are in minutes. The `Sleep` item uses `derivedSleepWindow: true`, so it expands to fill the remaining time until the next wake time.
-
-## Editing Timing Windows
-
-Timing windows live in `windowTemplates` inside `index.html`.
-
-Windows are separate from schedule blocks. They do not take time away from the day; they are overlays calculated from the wake time or from specific schedule blocks.
-
-Current windows include:
-
-- First coffee
-- Second coffee
-- Optional Zyn
-- Last big water intake
-- Optimal sleep window
+The windows live in `windowTemplates` inside `index.html`.
 
 Each window has:
 
 - `label`: display name.
+- `group`: category shown in the map.
 - `color`: tag and card color.
+- `priority`: which active window wins the current panel.
+- `startOffset` / `endOffset`: minutes after wake.
+- `fixedStartClock` / `fixedEndClock`: fixed clock-time windows, such as the default sleep window from 9-10pm.
+- `relativeToSleep`, `startBeforeSleep`, and `endBeforeSleep`: calculate windows backward from the sleep window.
+- `posture`: short current-mode label.
 - `note`: guidance shown in the current panel.
-- `findStart`: logic for finding the start time.
-- `duration`: window length in minutes.
+- `fits`: recommended activities for that window.
 
-Use `wakeMinutes + minutesPerDay - X` for windows that are calculated backward from the next wake time, such as sleep or water cutoff.
+Example:
+
+```js
+{
+  id: "deep-work",
+  label: "Deep creation",
+  group: "Task type",
+  color: "#214f3c",
+  priority: 90,
+  startOffset: 90,
+  endOffset: 270,
+  posture: "Create",
+  note: "The cleanest window for writing, architecture, analysis, hard thinking, and original output.",
+  fits: ["Writing and synthesis", "Hard analytical work", "Planning that turns into concrete output"]
+}
+```
 
 ## Project Structure
 
 ```text
 .
-├── index.html
-└── README.md
+|-- index.html
+`-- README.md
 ```
 
 ## Notes
 
-The app always uses the current local time from `new Date()` for the current-state panel. The only time input is the wake time.
+The app always uses the current local time from `new Date()` for the current-window panel. The time inputs are `Wake` and optional `Target next wake`.

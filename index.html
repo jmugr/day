@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Optimal Weekday</title>
+  <title>Optimal Windows</title>
   <style>
     :root {
       color-scheme: light;
@@ -18,6 +18,7 @@
       --gold: #d3a642;
       --blue: #426a8d;
       --violet: #7a5a8c;
+      --berry: #9a4f65;
       --shadow: 0 18px 55px rgba(31, 34, 29, .13);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
@@ -48,7 +49,7 @@
 
     header {
       border-bottom: 1px solid var(--line);
-      background: rgba(247, 246, 240, .86);
+      background: rgba(247, 246, 240, .88);
       backdrop-filter: blur(14px);
       position: sticky;
       top: 0;
@@ -300,39 +301,67 @@
 
     .timeline {
       display: grid;
-      gap: 10px;
-    }
-
-    .row {
-      display: grid;
-      grid-template-columns: 86px minmax(0, 1fr);
+      grid-template-columns: 72px minmax(0, 1fr);
       gap: 14px;
       align-items: stretch;
-      position: relative;
     }
 
-    .time {
+    .time-scale {
+      position: relative;
+      min-height: var(--calendar-height);
+      border-right: 1px solid var(--line);
+    }
+
+    .time-tick {
+      position: absolute;
+      right: 12px;
+      top: var(--tick-top);
+      transform: translateY(-50%);
       color: var(--muted);
       font-variant-numeric: tabular-nums;
       font-size: .88rem;
       line-height: 1.25;
-      padding-top: 12px;
       text-align: right;
     }
 
+    .calendar-grid {
+      position: relative;
+      min-height: var(--calendar-height);
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent calc(var(--hour-height) - 1px),
+          #edf0e9 calc(var(--hour-height) - 1px),
+          #edf0e9 var(--hour-height)
+        );
+    }
+
+    .calendar-card {
+      position: absolute;
+      left: calc(var(--lane-left) * 1%);
+      top: var(--window-top);
+      width: calc(var(--lane-width) * 1%);
+      height: var(--window-height);
+      padding: 0 5px;
+      z-index: 1;
+    }
+
     .task {
+      height: 100%;
       border: 1px solid var(--line);
       border-left: 7px solid var(--row-color);
       border-radius: 8px;
       background: #fff;
-      min-height: 76px;
-      padding: 12px 14px;
+      padding: 10px 11px;
       display: grid;
       gap: 7px;
+      align-content: start;
+      overflow: hidden;
       transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
     }
 
-    .row.active .task {
+    .calendar-card.active .task {
       border-color: color-mix(in srgb, var(--row-color), #1b1d1c 12%);
       box-shadow: 0 10px 28px rgba(33, 79, 60, .17);
       transform: translateY(-1px);
@@ -357,6 +386,41 @@
       line-height: 1.35;
     }
 
+    .calendar-card.compact .task-note {
+      display: none;
+    }
+
+    .now-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: var(--now-top);
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .now-label {
+      min-height: 24px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .now-rule {
+      height: 2px;
+      background: var(--ink);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, .7);
+    }
+
     .window-tags {
       display: flex;
       flex-wrap: wrap;
@@ -376,19 +440,6 @@
       font-size: .78rem;
       font-weight: 760;
       line-height: 1;
-    }
-
-    .progress-shell {
-      height: 8px;
-      border-radius: 999px;
-      background: #e7e9e2;
-      overflow: hidden;
-    }
-
-    .progress {
-      height: 100%;
-      width: var(--progress, 0%);
-      background: var(--row-color);
     }
 
     @media (max-width: 840px) {
@@ -437,14 +488,22 @@
         padding: 14px;
       }
 
-      .row {
-        grid-template-columns: 1fr;
-        gap: 6px;
+      .timeline {
+        grid-template-columns: 58px minmax(0, 1fr);
+        gap: 8px;
       }
 
-      .time {
-        text-align: left;
-        padding-top: 2px;
+      .time-tick {
+        right: 8px;
+        font-size: .78rem;
+      }
+
+      .calendar-card {
+        padding: 0 3px;
+      }
+
+      .task {
+        padding: 8px 9px;
       }
 
       .meta-grid {
@@ -468,15 +527,19 @@
   <div class="app">
     <header>
       <div class="bar">
-        <h1>Optimal Weekday</h1>
-        <div class="controls" aria-label="Schedule controls">
+        <h1>Optimal Windows</h1>
+        <div class="controls" aria-label="Window controls">
           <label>
             Wake
             <input id="wakeTime" type="time" value="05:15">
           </label>
+          <label>
+            Target next wake
+            <input id="nextWakeTime" type="time">
+          </label>
           <label class="toggle">
-            <input id="homeDeepWork" type="checkbox">
-            Deep work at home first
+            <input id="showOptional" type="checkbox" checked>
+            Show optional windows
           </label>
         </div>
       </div>
@@ -487,13 +550,13 @@
         <div class="state-band"></div>
         <div class="now-body">
           <div>
-            <p class="eyebrow">Current cognitive state</p>
-            <h2 id="stateName" class="state-name">Creation</h2>
+            <p class="eyebrow">Best window now</p>
+            <h2 id="stateName" class="state-name">Loading</h2>
           </div>
           <p id="currentWork" class="current-work"></p>
           <div class="meta-grid">
             <div class="metric">
-              <span>Block</span>
+              <span>Window</span>
               <strong id="blockTime"></strong>
             </div>
             <div class="metric">
@@ -501,20 +564,20 @@
               <strong id="elapsed"></strong>
             </div>
             <div class="metric">
-              <span>Next Shift</span>
+              <span>Next Open</span>
               <strong id="nextShift"></strong>
             </div>
             <div class="metric">
-              <span>Focus</span>
+              <span>Posture</span>
               <strong id="focusMode"></strong>
             </div>
           </div>
           <div>
-            <p class="eyebrow">Best work right now</p>
+            <p class="eyebrow">Good fits</p>
             <ul id="bestWork" class="work-list"></ul>
           </div>
           <div>
-            <p class="eyebrow">Timing windows</p>
+            <p class="eyebrow">Also open</p>
             <ul id="timingWindows" class="window-list"></ul>
           </div>
         </div>
@@ -522,7 +585,7 @@
 
       <section class="panel timeline-panel">
         <div class="timeline-head">
-          <h2>Day Map</h2>
+          <h2>Window Map</h2>
           <div id="dayTotal" class="total"></div>
         </div>
         <div id="timeline" class="timeline"></div>
@@ -531,204 +594,214 @@
   </div>
 
   <script>
-    const sectionTemplates = [
-      {
-        heading: "Priming",
-        color: "#78904f",
-        state: "Priming",
-        focus: "Ramp up",
-        work: [
-          "Light movement, hydration, meditation, getting ready",
-          "Task planning without opening the inbox",
-          "Affirmations and commute/walk rhythm"
-        ],
-        items: [
-          { label: "Wake up with light dynamic movement", duration: 10 },
-          { label: "Hydrate with 10g creatine in 16oz water and meditation", duration: 15 },
-          { label: "Get ready and repeat affirmations", duration: 20 },
-          { label: "Walk to work and repeat affirmations", duration: 20 },
-          { label: "Light breakfast and plan top tasks without looking", duration: 10 }
-        ]
-      },
-      {
-        heading: "Creation",
-        color: "#214f3c",
-        state: "Creation",
-        focus: "Morning Focus",
-        work: [
-          "Deep work: writing, thinking, ideas, analysis",
-          "Precisely scoped research that directly feeds output",
-          "Communications only after the first creation block"
-        ],
-        items: [
-          { label: "First coffee and deep work", duration: 100, note: "Writing, thinking, ideas, analysis" },
-          { label: "Engagement and communications", duration: 90, note: "Morning Focus off", focus: "Communications" }
-        ]
-      },
-      {
-        heading: "Execution",
-        color: "#426a8d",
-        state: "Execution",
-        focus: "Directed output",
-        work: [
-          "Maintenance after the second coffee window",
-          "Follow-ups, materials, and internal coordination",
-          "Anki and walking as a light reset"
-        ],
-        items: [
-          { label: "Second coffee and maintenance", duration: 30 },
-          { label: "Half lunch, walk and Anki", duration: 30, note: "Light reset, not full cognitive disengagement" },
-          { label: "Execution block, optional Zyn", duration: 120, note: "Follow-ups, materials, internal coordination", focus: "Optional Zyn" }
-        ]
-      },
-      {
-        heading: "Reaction",
-        color: "#b86948",
-        state: "Reaction",
-        focus: "Responsive",
-        work: [
-          "Reactive items and meetings",
-          "Lower-cognitive tasks that benefit from momentum",
-          "Short break first: food, breath, walk, talk, stretch"
-        ],
-        items: [
-          { label: "Break", duration: 20, note: "Other half lunch, breathe, walk, talk, and stretch" },
-          { label: "Opportunistic work", duration: 90, note: "Reactive items, meetings, lower-cognitive tasks" }
-        ]
-      },
-      {
-        heading: "Maintenance",
-        color: "#d3a642",
-        state: "Maintenance",
-        focus: "Close loops",
-        work: [
-          "Pipeline upkeep and inbox cleaning",
-          "Journal, reflection, and tomorrow setup",
-          "Administrative closure instead of new deep work"
-        ],
-        items: [
-          { label: "Second half of lunch and maintenance", duration: 30 },
-          { label: "Maintenance", duration: 30, note: "Pipeline, clean inbox" },
-          { label: "Wrap up", duration: 30, note: "Journal, reflect, check tomorrow, determine affirmations for tomorrow" }
-        ]
-      },
-      {
-        heading: "Rest",
-        color: "#7a5a8c",
-        state: "Rest",
-        focus: "Recover",
-        work: [
-          "Decompressing walk, workout, shower, stretching",
-          "Light work, reading, or maintenance only if it stays low-stimulation",
-          "Dinner, wind down, and sleep protection"
-        ],
-        items: [
-          { label: "Walk home", duration: 20, note: "Decompress, Anki" },
-          { label: "Workout then shower", duration: 60 },
-          { label: "Stretch", duration: 15 },
-          { label: "Optional block", duration: 60, note: "Light work, reading, maintenance" },
-          { label: "Dinner with Marissa", duration: 20 },
-          { label: "Wind down", duration: 30, note: "Low stimulation, no intense inputs, take AirPods to bed for morning meditation" },
-          { label: "Sleep", duration: 60, derivedSleepWindow: true }
-        ]
-      }
-    ];
-
-    function activeSections(startDeepWorkAtHome) {
-      const sections = sectionTemplates.map((section) => ({
-        ...section,
-        items: section.items.map((item) => ({ ...item }))
-      }));
-
-      if (!startDeepWorkAtHome) return sections;
-
-      const priming = sections.find((section) => section.heading === "Priming");
-      const creation = sections.find((section) => section.heading === "Creation");
-      const deepWork = creation.items.shift();
-      deepWork.label = "First coffee and deep work at home";
-      deepWork.section = creation.heading;
-      deepWork.state = creation.state;
-      deepWork.focus = creation.focus;
-      deepWork.work = creation.work;
-      deepWork.color = creation.color;
-
-      priming.items = [
-        priming.items[0],
-        priming.items[1],
-        priming.items[4],
-        deepWork,
-        priming.items[2],
-        priming.items[3]
-      ];
-
-      priming.work = [
-        "Light movement, hydration, meditation, then task planning",
-        "Deep work before the commute/walk pulls the first creation block forward",
-        "Get ready and walk after the output block"
-      ];
-
-      return sections;
-    }
+    const minutesPerDay = 24 * 60;
 
     const windowTemplates = [
       {
+        id: "sleep",
+        label: "Sleep",
+        group: "Recovery",
+        color: "#7a5a8c",
+        priority: 100,
+        fixedStartClock: 21 * 60,
+        fixedEndClock: 22 * 60,
+        posture: "Protect",
+        note: "The target bedtime range for 8-9 hours before the selected next wake, or 9-10pm by default.",
+        fits: [
+          "Start wind-down before this opens",
+          "Low light, low stimulation, no new intense inputs",
+          "Set up the morning and let the day close"
+        ]
+      },
+      {
+        id: "deep-work",
+        label: "Deep creation",
+        group: "Task type",
+        color: "#214f3c",
+        priority: 90,
+        startOffset: 90,
+        endOffset: 270,
+        posture: "Create",
+        note: "The cleanest window for writing, architecture, analysis, hard thinking, and original output.",
+        fits: [
+          "Writing and synthesis",
+          "Hard analytical work",
+          "Planning that turns into concrete output"
+        ]
+      },
+      {
         id: "first-coffee",
         label: "First coffee",
+        group: "Inputs",
         color: "#6f4b33",
-        note: "Best near the beginning of the first deep work block.",
-        findStart(schedule) {
-          const deepWork = schedule.find((item) => item.label.includes("First coffee and deep work"));
-          return deepWork ? deepWork.start : null;
-        },
-        duration: 60
+        priority: 82,
+        startOffset: 75,
+        endOffset: 165,
+        posture: "Caffeinate",
+        note: "Best after the waking cortisol spike settles, paired with the first serious output window.",
+        fits: [
+          "Pair with deep creation",
+          "Avoid spending the lift on inbox drift",
+          "Hydrate first"
+        ]
+      },
+      {
+        id: "analysis",
+        label: "Analysis and decisions",
+        group: "Task type",
+        color: "#426a8d",
+        priority: 76,
+        startOffset: 240,
+        endOffset: 420,
+        posture: "Decide",
+        note: "Good for review, prioritization, specs, debugging, and decisions that need steadiness.",
+        fits: [
+          "Code review and debugging",
+          "Specs, tradeoffs, and sequencing",
+          "Important messages after thinking is done"
+        ]
       },
       {
         id: "second-coffee",
         label: "Second coffee",
+        group: "Inputs",
         color: "#8b6239",
-        note: "Useful for the maintenance and execution handoff; avoid drifting too late.",
-        findStart(schedule) {
-          const secondCoffee = schedule.find((item) => item.label.includes("Second coffee"));
-          return secondCoffee ? secondCoffee.start : null;
-        },
-        duration: 60
+        priority: 70,
+        startOffset: 390,
+        endOffset: 510,
+        optional: true,
+        posture: "Lift",
+        note: "A useful midday lift, ideally far enough from sleep to avoid stealing from recovery.",
+        fits: [
+          "Use for maintenance or execution",
+          "Keep it bounded",
+          "Skip if sleep debt is winning"
+        ]
+      },
+      {
+        id: "nap",
+        label: "Nap",
+        group: "Recovery",
+        color: "#7a5a8c",
+        priority: 86,
+        startOffset: 420,
+        endOffset: 540,
+        optional: true,
+        posture: "Recover",
+        note: "A 10-25 minute reset window, best before the day gets too late.",
+        fits: [
+          "Short nap, not a second sleep",
+          "NSDR or eyes-closed rest also fits",
+          "Use when the afternoon cliff is real"
+        ]
+      },
+      {
+        id: "execution",
+        label: "Execution",
+        group: "Task type",
+        color: "#78904f",
+        priority: 64,
+        startOffset: 420,
+        endOffset: 660,
+        posture: "Execute",
+        note: "Best for implementation, follow-through, materials, coordination, and moving known work forward.",
+        fits: [
+          "Implementation and follow-ups",
+          "Materials, checklists, and coordination",
+          "Known next actions"
+        ]
       },
       {
         id: "zyn",
         label: "Optional Zyn",
-        color: "#426a8d",
-        note: "Only if it supports the execution block instead of pulling you into reactivity.",
-        findStart(schedule) {
-          const execution = schedule.find((item) => item.label.includes("Execution block"));
-          return execution ? execution.start : null;
-        },
-        duration: 75
-      },
-      {
-        id: "water-cutoff",
-        label: "Last big water intake",
+        group: "Inputs",
         color: "#4d8794",
-        note: "Finish big hydration 90m before the sleep window.",
-        findStart(schedule, wakeMinutes) {
-          return wakeMinutes + minutesPerDay - 630;
-        },
-        duration: 60
+        priority: 58,
+        startOffset: 480,
+        endOffset: 660,
+        optional: true,
+        posture: "Constrain",
+        note: "Only useful if it tightens execution; it is a bad trade when it pulls you into reactivity.",
+        fits: [
+          "Pair with execution, not scrolling",
+          "Keep it away from late day recovery",
+          "Skip when stress is already high"
+        ]
       },
       {
-        id: "sleep",
-        label: "Optimal sleep window",
-        color: "#7a5a8c",
-        note: "Protect this as the target bedtime range for the next wake time.",
-        findStart(schedule, wakeMinutes) {
-          return wakeMinutes + minutesPerDay - 540;
-        },
-        duration: 60
+        id: "reactive",
+        label: "Reactive and social tasks",
+        group: "Task type",
+        color: "#b86948",
+        priority: 48,
+        startOffset: 570,
+        endOffset: 780,
+        posture: "Respond",
+        note: "The better window for meetings, inbox, lower-cognitive tasks, and opportunistic cleanup.",
+        fits: [
+          "Meetings and inbox",
+          "Small commitments",
+          "Tasks that benefit from momentum more than insight"
+        ]
+      },
+      {
+        id: "workout",
+        label: "Workout",
+        group: "Body",
+        color: "#d3a642",
+        priority: 78,
+        relativeToSleep: true,
+        startBeforeSleep: 300,
+        endBeforeSleep: 150,
+        posture: "Train",
+        note: "Late afternoon or early evening training, leaving enough runway to come down before bed.",
+        fits: [
+          "Strength, conditioning, or hard walk",
+          "Shower and food afterward",
+          "Do not let it collide with wind-down"
+        ]
+      },
+      {
+        id: "alcohol",
+        label: "Alcohol, if any",
+        group: "Inputs",
+        color: "#9a4f65",
+        priority: 30,
+        relativeToSleep: true,
+        startBeforeSleep: 330,
+        endBeforeSleep: 210,
+        optional: true,
+        posture: "Limit",
+        note: "If drinking, earlier is better; leave a clear buffer before the sleep window.",
+        fits: [
+          "Social drink only, not a nightcap",
+          "Stop at least 3 hours before sleep",
+          "Hydrate and eat with it"
+        ]
+      },
+      {
+        id: "wind-down",
+        label: "Wind-down",
+        group: "Recovery",
+        color: "#626a66",
+        priority: 74,
+        relativeToSleep: true,
+        startBeforeSleep: 90,
+        endBeforeSleep: 0,
+        posture: "Downshift",
+        note: "The buffer that makes the sleep window realistic.",
+        fits: [
+          "Dinner cleanup, prep, light reading",
+          "Stretching and low-stimulation conversation",
+          "Tomorrow setup without re-opening the day"
+        ]
       }
     ];
 
     const els = {
       wakeTime: document.querySelector("#wakeTime"),
-      homeDeepWork: document.querySelector("#homeDeepWork"),
+      nextWakeTime: document.querySelector("#nextWakeTime"),
+      showOptional: document.querySelector("#showOptional"),
       stateName: document.querySelector("#stateName"),
       currentWork: document.querySelector("#currentWork"),
       blockTime: document.querySelector("#blockTime"),
@@ -742,8 +815,6 @@
       stateBand: document.querySelector(".state-band"),
       nowPanel: document.querySelector(".now-panel")
     };
-
-    const minutesPerDay = 24 * 60;
 
     function parseClock(raw) {
       const match = /^(\d{1,2}):(\d{2})$/.exec(raw);
@@ -769,63 +840,9 @@
       return `${remainder}m`;
     }
 
-    function formatElapsed(minutes) {
-      if (minutes === 0) return "0m";
-      return formatDuration(minutes);
-    }
-
     function currentClockValue() {
       const now = new Date();
       return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    }
-
-    function minutesUntilNextStart(endMinutes, nextStartMinutes) {
-      const sameDayDelta = nextStartMinutes - endMinutes;
-      return sameDayDelta >= 0 ? sameDayDelta : minutesPerDay + sameDayDelta;
-    }
-
-    function buildSchedule(wakeMinutes, startDeepWorkAtHome) {
-      const sections = activeSections(startDeepWorkAtHome);
-      const totalNonSleepMinutes = sections.reduce((sectionTotal, section) => {
-        return sectionTotal + section.items.reduce((itemTotal, item) => {
-          return itemTotal + (item.derivedSleepWindow ? 0 : item.duration);
-        }, 0);
-      }, 0);
-      const computedSleepDuration = minutesUntilNextStart(wakeMinutes + totalNonSleepMinutes, wakeMinutes);
-      let cursor = wakeMinutes;
-      const schedule = [];
-
-      sections.forEach((section) => {
-        section.items.forEach((item) => {
-          const duration = item.derivedSleepWindow ? computedSleepDuration : item.duration;
-          schedule.push({
-            ...item,
-            section: item.section || section.heading,
-            state: item.state || section.state,
-            focus: item.focus || section.focus,
-            work: item.work || section.work,
-            color: item.color || section.color,
-            start: cursor,
-            end: cursor + duration,
-            duration
-          });
-          cursor += duration;
-        });
-      });
-
-      return schedule;
-    }
-
-    function buildWindows(wakeMinutes, schedule) {
-      return windowTemplates.map((template) => {
-        const start = template.findStart(schedule, wakeMinutes);
-        if (start === null) return null;
-        return {
-          ...template,
-          start,
-          end: start + template.duration
-        };
-      }).filter(Boolean);
     }
 
     function elapsedFromWake(wakeMinutes, currentMinutes) {
@@ -833,94 +850,260 @@
       return delta >= 0 ? delta : minutesPerDay + delta;
     }
 
-    function findCurrent(schedule, wakeMinutes, currentMinutes) {
-      const elapsed = elapsedFromWake(wakeMinutes, currentMinutes);
-      const absoluteCurrent = wakeMinutes + elapsed;
-      return schedule.find((item) => absoluteCurrent >= item.start && absoluteCurrent < item.end) || schedule[schedule.length - 1];
+    function targetNextWakeFromInput(wakeMinutes) {
+      const nextWake = parseClock(els.nextWakeTime.value);
+      if (nextWake === null) return null;
+      const candidate = clockTimeWithinDay(wakeMinutes, nextWake);
+      return candidate - wakeMinutes < 12 * 60 ? candidate + minutesPerDay : candidate;
+    }
+
+    function clockTimeWithinDay(wakeMinutes, clockMinutes) {
+      return clockMinutes >= wakeMinutes ? clockMinutes : clockMinutes + minutesPerDay;
+    }
+
+    function buildWindows(wakeMinutes, showOptional, targetNextWake) {
+      const sleepTemplate = windowTemplates.find((template) => template.id === "sleep");
+      const sleepStart = targetNextWake
+        ? targetNextWake - 9 * 60
+        : clockTimeWithinDay(wakeMinutes, sleepTemplate.fixedStartClock);
+      const sleepEnd = targetNextWake
+        ? targetNextWake - 8 * 60
+        : clockTimeWithinDay(wakeMinutes, sleepTemplate.fixedEndClock);
+
+      return windowTemplates
+        .filter((template) => showOptional || !template.optional)
+        .map((template) => {
+          const start = template.id === "sleep"
+            ? sleepStart
+            : typeof template.fixedStartClock === "number"
+            ? clockTimeWithinDay(wakeMinutes, template.fixedStartClock)
+            : template.relativeToSleep
+            ? sleepStart - template.startBeforeSleep
+            : wakeMinutes + template.startOffset;
+          const end = template.id === "sleep"
+            ? sleepEnd
+            : typeof template.fixedEndClock === "number"
+            ? clockTimeWithinDay(wakeMinutes, template.fixedEndClock)
+            : template.relativeToSleep
+            ? sleepStart - template.endBeforeSleep
+            : wakeMinutes + template.endOffset;
+
+          return {
+            ...template,
+            start,
+            end,
+            duration: end - start
+          };
+        })
+        .sort((a, b) => a.start - b.start || b.priority - a.priority);
     }
 
     function activeWindowsForCurrent(windows, absoluteCurrent) {
       return windows
         .filter((windowItem) => absoluteCurrent >= windowItem.start && absoluteCurrent < windowItem.end)
-        .map((windowItem) => ({ ...windowItem, status: "Open", minutes: windowItem.end - absoluteCurrent }));
+        .sort((a, b) => b.priority - a.priority || a.end - b.end);
     }
 
-    function windowsForBlock(windows, block) {
-      return windows.filter((windowItem) => windowItem.start < block.end && windowItem.end > block.start);
+    function nextWindow(windows, absoluteCurrent) {
+      const upcoming = windows.find((windowItem) => windowItem.start > absoluteCurrent);
+      if (upcoming) return upcoming;
+      return {
+        ...windows[0],
+        start: windows[0].start + minutesPerDay,
+        end: windows[0].end + minutesPerDay
+      };
+    }
+
+    function calendarBounds(wakeMinutes) {
+      return {
+        start: wakeMinutes,
+        end: wakeMinutes + minutesPerDay,
+        hourHeight: 72
+      };
+    }
+
+    function layoutCalendarWindows(windows) {
+      const sorted = windows.map((windowItem) => ({ ...windowItem })).sort((a, b) => a.start - b.start || a.end - b.end);
+      const clusters = [];
+      let activeCluster = null;
+
+      sorted.forEach((windowItem) => {
+        if (!activeCluster || windowItem.start >= activeCluster.end) {
+          activeCluster = {
+            end: windowItem.end,
+            items: [windowItem]
+          };
+          clusters.push(activeCluster);
+          return;
+        }
+
+        activeCluster.items.push(windowItem);
+        activeCluster.end = Math.max(activeCluster.end, windowItem.end);
+      });
+
+      clusters.forEach((cluster) => {
+        const laneEnds = [];
+        cluster.items.forEach((windowItem) => {
+          let lane = laneEnds.findIndex((end) => end <= windowItem.start);
+          if (lane === -1) {
+            lane = laneEnds.length;
+            laneEnds.push(windowItem.end);
+          } else {
+            laneEnds[lane] = windowItem.end;
+          }
+          windowItem.lane = lane;
+        });
+
+        cluster.items.forEach((windowItem) => {
+          const overlappingItems = cluster.items.filter((candidate) => {
+            return candidate.start < windowItem.end && candidate.end > windowItem.start;
+          });
+          const lanes = overlappingItems.map((candidate) => candidate.lane);
+          const minLane = Math.min(...lanes);
+          const maxLane = Math.max(...lanes);
+          windowItem.laneOffset = windowItem.lane - minLane;
+          windowItem.laneCount = Math.max(1, maxLane - minLane + 1);
+        });
+      });
+
+      return sorted;
+    }
+
+    function renderTimeScale(bounds) {
+      const ticks = [];
+      const visibleHours = Math.ceil((bounds.end - bounds.start) / 60);
+      for (let hour = 0; hour <= visibleHours; hour += 2) {
+        ticks.push(`
+          <div class="time-tick" style="--tick-top: ${hour * bounds.hourHeight}px">
+            ${formatClock(bounds.start + hour * 60)}
+          </div>
+        `);
+      }
+      return ticks.join("");
+    }
+
+    function renderWindowCard(windowItem, absoluteCurrent) {
+      const isOpen = absoluteCurrent >= windowItem.start && absoluteCurrent < windowItem.end;
+      const status = isOpen ? `${formatDuration(windowItem.end - absoluteCurrent)} left` : "upcoming";
+
+      return `
+        <li class="window-card" style="--window-color: ${windowItem.color}">
+          <strong>${windowItem.label}</strong>
+          <span>${formatClock(windowItem.start)}-${formatClock(windowItem.end)} - ${status}</span>
+          <span>${windowItem.note}</span>
+        </li>
+      `;
     }
 
     function render() {
       const wake = parseClock(els.wakeTime.value) ?? parseClock("06:00");
+      const targetNextWake = targetNextWakeFromInput(wake);
+      const daySummary = targetNextWake
+        ? `${formatClock(wake)} wake, ${formatClock(targetNextWake)} target next wake`
+        : `${formatClock(wake)} wake, 24h view`;
       const current = parseClock(currentClockValue());
-      const schedule = buildSchedule(wake, els.homeDeepWork.checked);
-      const windows = buildWindows(wake, schedule);
-      const currentItem = findCurrent(schedule, wake, current);
       const elapsed = elapsedFromWake(wake, current);
       const absoluteCurrent = wake + elapsed;
-      const progress = Math.max(0, Math.min(100, ((absoluteCurrent - currentItem.start) / currentItem.duration) * 100));
-      const nextShiftMinutes = Math.max(0, currentItem.end - absoluteCurrent);
-
-      document.documentElement.style.setProperty("--state-color", currentItem.color);
-      els.nowPanel.style.setProperty("--state-color", currentItem.color);
-      els.stateBand.style.setProperty("--state-color", currentItem.color);
-      els.stateName.textContent = currentItem.state;
-      els.currentWork.textContent = currentItem.note ? `${currentItem.label}: ${currentItem.note}` : currentItem.label;
-      els.blockTime.textContent = `${formatClock(currentItem.start)}-${formatClock(currentItem.end)}`;
-      els.elapsed.textContent = formatElapsed(elapsed);
-      els.nextShift.textContent = nextShiftMinutes ? formatDuration(nextShiftMinutes) : "now";
-      els.focusMode.textContent = currentItem.focus;
-      els.bestWork.innerHTML = currentItem.work.map((item) => `<li>${item}</li>`).join("");
+      const bounds = calendarBounds(wake);
+      const windows = buildWindows(wake, els.showOptional.checked, targetNextWake)
+        .filter((windowItem) => windowItem.start < bounds.end && windowItem.end > bounds.start);
       const activeWindows = activeWindowsForCurrent(windows, absoluteCurrent);
-      els.timingWindows.innerHTML = activeWindows.length ? activeWindows.map((windowItem) => {
-        return `
-          <li class="window-card" style="--window-color: ${windowItem.color}">
-            <strong>Open: ${windowItem.label}</strong>
-            <span>${formatClock(windowItem.start)}-${formatClock(windowItem.end)} - ${formatDuration(windowItem.minutes)} left</span>
-            <span>${windowItem.note}</span>
-          </li>
-        `;
-      }).join("") : `
-        <li class="window-card" style="--window-color: #c8cec5">
-          <strong>No timing window open</strong>
-          <span>Upcoming windows are marked in the Day Map.</span>
-        </li>
-      `;
-      els.dayTotal.textContent = `${formatClock(wake)} wake, ${formatClock(wake + minutesPerDay)} next wake`;
+      const calendarHeight = (bounds.end - bounds.start) / 60 * bounds.hourHeight;
+      const minuteHeight = bounds.hourHeight / 60;
 
-      els.timeline.innerHTML = schedule.map((item) => {
-        const isActive = item === currentItem;
-        const rowProgress = isActive ? progress : absoluteCurrent >= item.end ? 100 : 0;
-        const note = item.note ? `<div class="task-note">${item.note}</div>` : "";
-        const blockWindows = windowsForBlock(windows, item);
-        const windowTags = blockWindows.length
-          ? `<div class="window-tags">${blockWindows.map((windowItem) => `
-              <span class="window-tag" style="--window-color: ${windowItem.color}">
-                ${windowItem.label} ${formatClock(windowItem.start)}-${formatClock(windowItem.end)}
-              </span>
-            `).join("")}</div>`
-          : "";
+      if (!windows.length) {
+        document.documentElement.style.setProperty("--state-color", "#626a66");
+        els.nowPanel.style.setProperty("--state-color", "#626a66");
+        els.stateBand.style.setProperty("--state-color", "#626a66");
+        els.stateName.textContent = "No windows";
+        els.currentWork.textContent = "No configured windows fall inside this 24-hour wake cycle.";
+        els.blockTime.textContent = `${formatClock(wake)}-${formatClock(bounds.end)}`;
+        els.elapsed.textContent = formatDuration(elapsed);
+        els.nextShift.textContent = "none";
+        els.focusMode.textContent = "Adjust";
+        els.bestWork.innerHTML = "<li>Edit the window templates or adjust the wake time.</li>";
+        els.timingWindows.innerHTML = "";
+        els.dayTotal.textContent = daySummary;
+        els.timeline.style.setProperty("--calendar-height", `${calendarHeight}px`);
+        els.timeline.style.setProperty("--hour-height", `${bounds.hourHeight}px`);
+        els.timeline.innerHTML = `
+          <div class="time-scale">${renderTimeScale(bounds)}</div>
+          <div class="calendar-grid"></div>
+        `;
+        return;
+      }
+
+      const primary = activeWindows[0] || nextWindow(windows, absoluteCurrent);
+      const next = nextWindow(windows, absoluteCurrent);
+      const laidOutWindows = layoutCalendarWindows(windows);
+
+      document.documentElement.style.setProperty("--state-color", primary.color);
+      els.nowPanel.style.setProperty("--state-color", primary.color);
+      els.stateBand.style.setProperty("--state-color", primary.color);
+      els.stateName.textContent = activeWindows.length ? primary.label : "Between windows";
+      els.currentWork.textContent = activeWindows.length
+        ? primary.note
+        : `Next best window: ${next.label} at ${formatClock(next.start)}.`;
+      els.blockTime.textContent = `${formatClock(primary.start)}-${formatClock(primary.end)}`;
+      els.elapsed.textContent = formatDuration(elapsed);
+      els.nextShift.textContent = next.start > absoluteCurrent
+        ? `${next.label} in ${formatDuration(next.start - absoluteCurrent)}`
+        : `${next.label} now`;
+      els.focusMode.textContent = primary.posture;
+      els.bestWork.innerHTML = primary.fits.map((item) => `<li>${item}</li>`).join("");
+
+      const secondaryWindows = activeWindows.filter((windowItem) => windowItem !== primary);
+      els.timingWindows.innerHTML = secondaryWindows.length
+        ? secondaryWindows.map((windowItem) => renderWindowCard(windowItem, absoluteCurrent)).join("")
+        : renderWindowCard(next, absoluteCurrent);
+
+      els.dayTotal.textContent = daySummary;
+      els.timeline.style.setProperty("--calendar-height", `${calendarHeight}px`);
+      els.timeline.style.setProperty("--hour-height", `${bounds.hourHeight}px`);
+      els.timeline.innerHTML = `
+        <div class="time-scale">${renderTimeScale(bounds)}</div>
+        <div class="calendar-grid">
+          ${absoluteCurrent >= bounds.start && absoluteCurrent <= bounds.end ? `
+          <div class="now-line" style="--now-top: ${(absoluteCurrent - bounds.start) * minuteHeight}px">
+            <span class="now-label">${formatClock(absoluteCurrent)}</span>
+            <span class="now-rule"></span>
+          </div>` : ""}
+          ${laidOutWindows.map((item) => {
+        const isActive = activeWindows.includes(item);
+        const optional = item.optional ? `<span class="window-tag" style="--window-color: ${item.color}">optional</span>` : "";
+        const active = isActive ? `<span class="window-tag" style="--window-color: ${item.color}">open now</span>` : "";
+        const clippedStart = Math.max(item.start, bounds.start);
+        const clippedEnd = Math.min(item.end, bounds.end);
+        const top = (clippedStart - bounds.start) * minuteHeight;
+        const height = (clippedEnd - clippedStart) * minuteHeight;
+        const laneWidth = 100 / item.laneCount;
+        const laneLeft = item.laneOffset * laneWidth;
+        const compact = item.duration <= 75 || item.laneCount > 2;
+
         return `
-          <article class="row ${isActive ? "active" : ""}" style="--row-color: ${item.color}; --progress: ${rowProgress}%">
-            <div class="time">${formatClock(item.start)}<br>${formatClock(item.end)}</div>
+          <article
+            class="calendar-card ${isActive ? "active" : ""} ${compact ? "compact" : ""}"
+            style="--row-color: ${item.color}; --window-top: ${top}px; --window-height: ${height}px; --lane-left: ${laneLeft}; --lane-width: ${laneWidth}"
+          >
             <div class="task">
-              <div class="section">${item.section} · ${formatDuration(item.duration)}</div>
+              <div class="section">${formatClock(item.start)}-${formatClock(item.end)} - ${item.group}</div>
               <div class="task-title">${item.label}</div>
-              ${note}
-              ${windowTags}
-              <div class="progress-shell" aria-hidden="true"><div class="progress"></div></div>
+              <div class="task-note">${item.note}</div>
+              <div class="window-tags">${active}${optional}</div>
             </div>
           </article>
         `;
-      }).join("");
+      }).join("")}
+        </div>
+      `;
     }
 
     els.wakeTime.addEventListener("input", render);
-    els.homeDeepWork.addEventListener("input", render);
+    els.nextWakeTime.addEventListener("input", render);
+    els.showOptional.addEventListener("input", render);
 
     render();
-    window.setInterval(() => {
-      render();
-    }, 60 * 1000);
+    window.setInterval(render, 60 * 1000);
   </script>
 </body>
 </html>
