@@ -275,6 +275,29 @@
       line-height: 1.3;
     }
 
+    .dependency-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 2px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .dependency-list li {
+      min-height: 22px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--window-color, var(--row-color)), #ffffff 46%);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--window-color, var(--row-color)), #ffffff 91%);
+      color: #343a36;
+      font-size: .74rem;
+      font-weight: 720;
+      line-height: 1;
+      padding: 0 7px;
+    }
+
     .timeline-panel {
       padding: 20px;
     }
@@ -299,11 +322,47 @@
       white-space: nowrap;
     }
 
+    .dependency-map {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .dependency-heading {
+      margin-bottom: 9px;
+    }
+
+    .dependency-item {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--window-color);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .dependency-item strong {
+      color: var(--ink);
+      font-size: .9rem;
+      line-height: 1.2;
+    }
+
     .timeline {
       display: grid;
       grid-template-columns: 72px minmax(0, 1fr);
       gap: 14px;
       align-items: stretch;
+    }
+
+    .calendar-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-bottom: 8px;
+      scrollbar-gutter: stable;
+      min-width: 0;
     }
 
     .time-scale {
@@ -326,6 +385,8 @@
 
     .calendar-grid {
       position: relative;
+      width: max(100%, var(--calendar-min-width, 100%));
+      min-width: var(--calendar-min-width, 100%);
       min-height: var(--calendar-height);
       background:
         repeating-linear-gradient(
@@ -387,6 +448,21 @@
     }
 
     .calendar-card.compact .task-note {
+      display: none;
+    }
+
+    .task .dependency-list {
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .calendar-card.compact .dependency-list li {
+      font-size: .68rem;
+      min-height: 20px;
+      padding: 0 6px;
+    }
+
+    .calendar-card.compact .window-tags {
       display: none;
     }
 
@@ -568,7 +644,7 @@
               <strong id="nextShift"></strong>
             </div>
             <div class="metric">
-              <span>Posture</span>
+              <span>Until Bed</span>
               <strong id="focusMode"></strong>
             </div>
           </div>
@@ -588,6 +664,8 @@
           <h2>Window Map</h2>
           <div id="dayTotal" class="total"></div>
         </div>
+        <p class="eyebrow dependency-heading">Dependencies</p>
+        <div id="dependencyMap" class="dependency-map" aria-label="Window dependencies"></div>
         <div id="timeline" class="timeline"></div>
       </section>
     </main>
@@ -606,6 +684,7 @@
         fixedStartClock: 21 * 60,
         fixedEndClock: 22 * 60,
         posture: "Protect",
+        dependencies: ["Wake time", "Target next wake"],
         note: "The target bedtime range for 8-9 hours before the selected next wake, or 9-10pm by default.",
         fits: [
           "Start wind-down before this opens",
@@ -638,6 +717,7 @@
         startOffset: 75,
         endOffset: 165,
         posture: "Caffeinate",
+        dependencies: ["Wake time"],
         note: "Best after the waking cortisol spike settles, paired with the first serious output window.",
         fits: [
           "Pair with deep creation",
@@ -671,6 +751,7 @@
         endOffset: 510,
         optional: true,
         posture: "Lift",
+        dependencies: ["First coffee"],
         note: "A useful midday lift, ideally far enough from sleep to avoid stealing from recovery.",
         fits: [
           "Use for maintenance or execution",
@@ -688,6 +769,7 @@
         endOffset: 540,
         optional: true,
         posture: "Recover",
+        dependencies: ["Wake time", "First coffee", "Second coffee", "Optional Zyn"],
         note: "A 10-25 minute reset window, best before the day gets too late.",
         fits: [
           "Short nap, not a second sleep",
@@ -789,6 +871,7 @@
         startBeforeSleep: 90,
         endBeforeSleep: 0,
         posture: "Downshift",
+        dependencies: ["Sleep"],
         note: "The buffer that makes the sleep window realistic.",
         fits: [
           "Dinner cleanup, prep, light reading",
@@ -810,6 +893,7 @@
       focusMode: document.querySelector("#focusMode"),
       bestWork: document.querySelector("#bestWork"),
       timingWindows: document.querySelector("#timingWindows"),
+      dependencyMap: document.querySelector("#dependencyMap"),
       timeline: document.querySelector("#timeline"),
       dayTotal: document.querySelector("#dayTotal"),
       stateBand: document.querySelector(".state-band"),
@@ -914,6 +998,41 @@
       };
     }
 
+    function timeUntilBed(windows, absoluteCurrent) {
+      const sleepWindow = windows.find((windowItem) => windowItem.id === "sleep");
+      if (!sleepWindow) return "none";
+      if (absoluteCurrent >= sleepWindow.start && absoluteCurrent < sleepWindow.end) return "now";
+
+      const sleepStart = sleepWindow.start > absoluteCurrent
+        ? sleepWindow.start
+        : sleepWindow.start + minutesPerDay;
+      return formatDuration(sleepStart - absoluteCurrent);
+    }
+
+    function windowDependencies(windowItem) {
+      if (windowItem.dependencies?.length) return windowItem.dependencies;
+      if (windowItem.relativeToSleep) return ["Sleep"];
+      if (typeof windowItem.fixedStartClock === "number") return ["Wake time"];
+      return ["Wake time"];
+    }
+
+    function renderDependencies(windowItem) {
+      return `
+        <ul class="dependency-list" aria-label="${windowItem.label} dependencies">
+          ${windowDependencies(windowItem).map((dependency) => `<li>${dependency}</li>`).join("")}
+        </ul>
+      `;
+    }
+
+    function renderDependencyMap(windows) {
+      return windows.map((windowItem) => `
+        <section class="dependency-item" style="--window-color: ${windowItem.color}">
+          <strong>${windowItem.label}</strong>
+          ${renderDependencies(windowItem)}
+        </section>
+      `).join("");
+    }
+
     function calendarBounds(wakeMinutes) {
       return {
         start: wakeMinutes,
@@ -990,6 +1109,7 @@
         <li class="window-card" style="--window-color: ${windowItem.color}">
           <strong>${windowItem.label}</strong>
           <span>${formatClock(windowItem.start)}-${formatClock(windowItem.end)} - ${status}</span>
+          ${renderDependencies(windowItem)}
           <span>${windowItem.note}</span>
         </li>
       `;
@@ -1020,15 +1140,19 @@
         els.blockTime.textContent = `${formatClock(wake)}-${formatClock(bounds.end)}`;
         els.elapsed.textContent = formatDuration(elapsed);
         els.nextShift.textContent = "none";
-        els.focusMode.textContent = "Adjust";
+        els.focusMode.textContent = "none";
         els.bestWork.innerHTML = "<li>Edit the window templates or adjust the wake time.</li>";
         els.timingWindows.innerHTML = "";
+        els.dependencyMap.innerHTML = "";
         els.dayTotal.textContent = daySummary;
         els.timeline.style.setProperty("--calendar-height", `${calendarHeight}px`);
         els.timeline.style.setProperty("--hour-height", `${bounds.hourHeight}px`);
+        els.timeline.style.setProperty("--calendar-min-width", "100%");
         els.timeline.innerHTML = `
           <div class="time-scale">${renderTimeScale(bounds)}</div>
-          <div class="calendar-grid"></div>
+          <div class="calendar-scroll">
+            <div class="calendar-grid"></div>
+          </div>
         `;
         return;
       }
@@ -1036,6 +1160,7 @@
       const primary = activeWindows[0] || nextWindow(windows, absoluteCurrent);
       const next = nextWindow(windows, absoluteCurrent);
       const laidOutWindows = layoutCalendarWindows(windows);
+      const maxLaneCount = Math.max(1, ...laidOutWindows.map((item) => item.laneCount));
 
       document.documentElement.style.setProperty("--state-color", primary.color);
       els.nowPanel.style.setProperty("--state-color", primary.color);
@@ -1049,7 +1174,7 @@
       els.nextShift.textContent = next.start > absoluteCurrent
         ? `${next.label} in ${formatDuration(next.start - absoluteCurrent)}`
         : `${next.label} now`;
-      els.focusMode.textContent = primary.posture;
+      els.focusMode.textContent = timeUntilBed(windows, absoluteCurrent);
       els.bestWork.innerHTML = primary.fits.map((item) => `<li>${item}</li>`).join("");
 
       const secondaryWindows = activeWindows.filter((windowItem) => windowItem !== primary);
@@ -1057,18 +1182,21 @@
         ? secondaryWindows.map((windowItem) => renderWindowCard(windowItem, absoluteCurrent)).join("")
         : renderWindowCard(next, absoluteCurrent);
 
+      els.dependencyMap.innerHTML = renderDependencyMap(windows);
       els.dayTotal.textContent = daySummary;
       els.timeline.style.setProperty("--calendar-height", `${calendarHeight}px`);
       els.timeline.style.setProperty("--hour-height", `${bounds.hourHeight}px`);
+      els.timeline.style.setProperty("--calendar-min-width", `${maxLaneCount * 170}px`);
       els.timeline.innerHTML = `
         <div class="time-scale">${renderTimeScale(bounds)}</div>
-        <div class="calendar-grid">
-          ${absoluteCurrent >= bounds.start && absoluteCurrent <= bounds.end ? `
-          <div class="now-line" style="--now-top: ${(absoluteCurrent - bounds.start) * minuteHeight}px">
-            <span class="now-label">${formatClock(absoluteCurrent)}</span>
-            <span class="now-rule"></span>
-          </div>` : ""}
-          ${laidOutWindows.map((item) => {
+        <div class="calendar-scroll">
+          <div class="calendar-grid">
+            ${absoluteCurrent >= bounds.start && absoluteCurrent <= bounds.end ? `
+            <div class="now-line" style="--now-top: ${(absoluteCurrent - bounds.start) * minuteHeight}px">
+              <span class="now-label">${formatClock(absoluteCurrent)}</span>
+              <span class="now-rule"></span>
+            </div>` : ""}
+            ${laidOutWindows.map((item) => {
         const isActive = activeWindows.includes(item);
         const optional = item.optional ? `<span class="window-tag" style="--window-color: ${item.color}">optional</span>` : "";
         const active = isActive ? `<span class="window-tag" style="--window-color: ${item.color}">open now</span>` : "";
@@ -1088,12 +1216,14 @@
             <div class="task">
               <div class="section">${formatClock(item.start)}-${formatClock(item.end)} - ${item.group}</div>
               <div class="task-title">${item.label}</div>
+              ${renderDependencies(item)}
               <div class="task-note">${item.note}</div>
               <div class="window-tags">${active}${optional}</div>
             </div>
           </article>
         `;
       }).join("")}
+          </div>
         </div>
       `;
     }
