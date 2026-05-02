@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Optimal Windows</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1b1d1c;
+      --muted: #626a66;
+      --line: #d9ddd5;
+      --paper: #f7f6f0;
+      --surface: #ffffff;
+      --forest: #214f3c;
+      --moss: #78904f;
+      --clay: #b86948;
+      --gold: #d3a642;
+      --blue: #426a8d;
+      --violet: #7a5a8c;
+      --berry: #9a4f65;
+      --shadow: 0 18px 55px rgba(31, 34, 29, .13);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 36%),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 246, 240, .88);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 4;
+    }
+
+    .bar {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      min-height: 74px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 1.2rem + 1.3vw, 2.55rem);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .page-link {
+      color: var(--forest);
+      font-size: .9rem;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .page-link:hover {
+      text-decoration: underline;
+    }
+
+    .controls {
+      display: flex;
+      align-items: end;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    input[type="time"] {
+      appearance: none;
+      border: 1px solid #c8cec5;
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 42px;
+      padding: 0 12px;
+      min-width: 132px;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, .7);
+    }
+
+    .toggle {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      border: 1px solid #c8cec5;
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: .92rem;
+      font-weight: 720;
+      text-transform: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--forest);
+      flex: 0 0 auto;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 46px;
+      display: grid;
+      grid-template-columns: minmax(280px, 390px) 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .now-panel {
+      position: sticky;
+      top: 96px;
+      overflow: hidden;
+    }
+
+    .state-band {
+      min-height: 12px;
+      background: var(--state-color, var(--forest));
+    }
+
+    .now-body {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .state-name {
+      margin: 0;
+      font-size: clamp(2rem, 1.5rem + 2vw, 4rem);
+      line-height: .95;
+      letter-spacing: 0;
+    }
+
+    .current-work {
+      margin: 0;
+      font-size: 1.08rem;
+      line-height: 1.45;
+      color: #303531;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .metric {
+      padding: 13px;
+      min-height: 78px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric:nth-child(even) {
+      border-right: 0;
+    }
+
+    .metric:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      font-size: 1.02rem;
+      overflow-wrap: anywhere;
+    }
+
+    .work-list {
+      display: grid;
+      gap: 10px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .work-list li {
+      display: grid;
+      grid-template-columns: 9px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: #303531;
+      line-height: 1.35;
+    }
+
+    .work-list li::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      margin-top: .36em;
+      border-radius: 50%;
+      background: var(--state-color, var(--forest));
+    }
+
+    .window-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .window-card {
+      border: 1px solid var(--line);
+      border-left: 7px solid var(--window-color);
+      border-radius: 8px;
+      padding: 11px 12px;
+      display: grid;
+      gap: 4px;
+      background: #fff;
+    }
+
+    .window-card.active {
+      border-color: color-mix(in srgb, var(--window-color), #1b1d1c 12%);
+      box-shadow: 0 10px 28px rgba(33, 79, 60, .13);
+    }
+
+    .window-card strong {
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .window-card span {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.3;
+    }
+
+    .window-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.35;
+    }
+
+    .window-card-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .window-card-head span {
+      flex: 0 0 auto;
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .dependency-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 2px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .dependency-list li {
+      min-height: 22px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--window-color, var(--row-color)), #ffffff 46%);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--window-color, var(--row-color)), #ffffff 91%);
+      color: #343a36;
+      font-size: .74rem;
+      font-weight: 720;
+      line-height: 1;
+      padding: 0 7px;
+    }
+
+    .timeline-panel {
+      padding: 20px;
+    }
+
+    .timeline-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0;
+    }
+
+    .total {
+      color: var(--muted);
+      font-size: .92rem;
+      white-space: nowrap;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .window-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .window-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      padding: 0 8px;
+      border: 1px solid color-mix(in srgb, var(--window-color), #ffffff 36%);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--window-color), #ffffff 88%);
+      color: #262b28;
+      font-size: .78rem;
+      font-weight: 760;
+      line-height: 1;
+    }
+
+    @media (max-width: 840px) {
+      .bar {
+        grid-template-columns: 1fr;
+        padding: 16px 0;
+        gap: 14px;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .now-panel {
+        position: relative;
+        top: 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .bar,
+      main {
+        width: min(100vw - 20px, 1180px);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+
+      .toggle {
+        grid-column: 1 / -1;
+      }
+
+      input[type="time"] {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .timeline-panel {
+        padding: 14px;
+      }
+
+      .timeline {
+        gap: 10px;
+      }
+
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metric,
+      .metric:nth-child(even),
+      .metric:nth-last-child(-n + 2) {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metric:last-child {
+        border-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="bar">
+        <div class="title-row">
+          <h1>Optimal Windows</h1>
+          <a class="page-link" href="index.html">State Lines</a>
+        </div>
+        <div class="controls" aria-label="Window controls">
+          <label>
+            Wake
+            <input id="wakeTime" type="time" value="05:15">
+          </label>
+          <label>
+            Target next wake
+            <input id="nextWakeTime" type="time">
+          </label>
+          <label class="toggle">
+            <input id="showOptional" type="checkbox" checked>
+            Show optional states
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel now-panel" aria-live="polite">
+        <div class="state-band"></div>
+        <div class="now-body">
+          <div>
+            <p class="eyebrow">Cognitive state now</p>
+            <h2 id="stateName" class="state-name">Loading</h2>
+          </div>
+          <p id="currentWork" class="current-work"></p>
+          <div class="meta-grid">
+            <div class="metric">
+              <span>State</span>
+              <strong id="blockTime"></strong>
+            </div>
+            <div class="metric">
+              <span>Since Wake</span>
+              <strong id="elapsed"></strong>
+            </div>
+            <div class="metric">
+              <span>Next State</span>
+              <strong id="nextShift"></strong>
+            </div>
+            <div class="metric">
+              <span>Until Bed</span>
+              <strong id="focusMode"></strong>
+            </div>
+          </div>
+          <div>
+            <p class="eyebrow">Best use</p>
+            <ul id="bestWork" class="work-list"></ul>
+          </div>
+          <div>
+            <p class="eyebrow">Also true</p>
+            <ul id="timingWindows" class="window-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel timeline-panel">
+        <div class="timeline-head">
+          <h2>Cognitive State Map</h2>
+          <div id="dayTotal" class="total"></div>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const minutesPerDay = 24 * 60;
+
+    const windowTemplates = [
+      {
+        id: "sleep",
+        label: "Sleep",
+        group: "Cognitive recovery",
+        color: "#7a5a8c",
+        priority: 100,
+        fixedStartClock: 21 * 60,
+        fixedEndClock: 22 * 60,
+        dependencies: ["Wake time", "Target next wake"],
+        note: "The brain-off recovery window for memory consolidation, emotional reset, and tomorrow's baseline.",
+        fits: [
+          "Start wind-down before this opens",
+          "Low light, low stimulation, no new intense inputs",
+          "Set up the morning and let the day close"
+        ]
+      },
+      {
+        id: "wake-transition",
+        label: "Wake transition",
+        group: "0-1h 15m awake",
+        color: "#626a66",
+        priority: 60,
+        startOffset: 0,
+        endOffset: 75,
+        dependencies: ["Wake time"],
+        note: "The nervous system is coming online; avoid spending the first clear minutes on reactive inputs.",
+        fits: [
+          "Light setup, hydration, food, movement",
+          "Review the day without opening inbox loops",
+          "Capture first thoughts before the day gets noisy"
+        ]
+      },
+      {
+        id: "prime-focus",
+        label: "Prime focus",
+        group: "1h 15m-4h awake",
+        color: "#214f3c",
+        priority: 90,
+        startOffset: 75,
+        endOffset: 240,
+        dependencies: ["Wake time", "Optional first coffee"],
+        note: "The cleanest high-agency state for original thought, architecture, writing, and hard synthesis.",
+        fits: [
+          "Writing and synthesis",
+          "Hard analytical work",
+          "Planning that turns into concrete output",
+          "Pair coffee with creation, not scrolling"
+        ]
+      },
+      {
+        id: "executive-control",
+        label: "Executive control",
+        group: "4-7h awake",
+        color: "#426a8d",
+        priority: 76,
+        startOffset: 240,
+        endOffset: 420,
+        dependencies: ["Wake time"],
+        note: "Still steady enough for tradeoffs and debugging, with a little less raw creative voltage.",
+        fits: [
+          "Code review and debugging",
+          "Specs, tradeoffs, and sequencing",
+          "Important messages after thinking is done"
+        ]
+      },
+      {
+        id: "recovery-dip",
+        label: "Recovery dip",
+        group: "7-9h awake",
+        color: "#7a5a8c",
+        priority: 86,
+        startOffset: 420,
+        endOffset: 540,
+        optional: true,
+        dependencies: ["Wake time", "Caffeine timing"],
+        note: "A lower-output state where a short reset can protect the rest of the day.",
+        fits: [
+          "10-25 minute nap, NSDR, or eyes-closed rest",
+          "Walk, hydrate, eat, and reduce stimulation",
+          "Use second coffee carefully, far from sleep"
+        ]
+      },
+      {
+        id: "execution-bandwidth",
+        label: "Execution bandwidth",
+        group: "7-11h awake",
+        color: "#78904f",
+        priority: 64,
+        startOffset: 420,
+        endOffset: 660,
+        dependencies: ["Wake time", "Recovery dip"],
+        note: "The brain is better at moving known work than inventing the shape of the work.",
+        fits: [
+          "Implementation and follow-through",
+          "Materials, checklists, and coordination",
+          "Known next actions",
+          "Optional nicotine only if it tightens execution"
+        ]
+      },
+      {
+        id: "social-reactive",
+        label: "Social and reactive bandwidth",
+        group: "9h 30m-13h awake",
+        color: "#b86948",
+        priority: 48,
+        startOffset: 570,
+        endOffset: 780,
+        dependencies: ["Wake time", "Prime focus protected"],
+        note: "Lower-cognitive work fits better here because the cost of interruption is less expensive.",
+        fits: [
+          "Meetings and inbox",
+          "Small commitments",
+          "Tasks that benefit from momentum more than insight"
+        ]
+      },
+      {
+        id: "body-drive",
+        label: "Body drive",
+        group: "Before sleep",
+        color: "#d3a642",
+        priority: 78,
+        relativeToSleep: true,
+        startBeforeSleep: 300,
+        endBeforeSleep: 150,
+        dependencies: ["Sleep"],
+        note: "A good physical activation state, leaving enough runway for the brain to come down before bed.",
+        fits: [
+          "Strength, conditioning, or hard walk",
+          "Shower and food afterward",
+          "Do not let it collide with wind-down"
+        ]
+      },
+      {
+        id: "inhibition-risk",
+        label: "Inhibition risk",
+        group: "Before sleep",
+        color: "#9a4f65",
+        priority: 30,
+        relativeToSleep: true,
+        startBeforeSleep: 330,
+        endBeforeSleep: 210,
+        optional: true,
+        dependencies: ["Sleep", "Next-day baseline"],
+        note: "A lower-friction state where alcohol or other dampening inputs can quietly steal from sleep quality.",
+        fits: [
+          "Social drink only, not a nightcap",
+          "Stop at least 3 hours before sleep",
+          "Hydrate and eat with it"
+        ]
+      },
+      {
+        id: "wind-down",
+        label: "Downshift",
+        group: "Before sleep",
+        color: "#626a66",
+        priority: 74,
+        relativeToSleep: true,
+        startBeforeSleep: 90,
+        endBeforeSleep: 0,
+        dependencies: ["Sleep"],
+        note: "The cognitive off-ramp that makes the sleep window realistic.",
+        fits: [
+          "Dinner cleanup, prep, light reading",
+          "Stretching and low-stimulation conversation",
+          "Tomorrow setup without re-opening the day"
+        ]
+      }
+    ];
+
+    const els = {
+      wakeTime: document.querySelector("#wakeTime"),
+      nextWakeTime: document.querySelector("#nextWakeTime"),
+      showOptional: document.querySelector("#showOptional"),
+      stateName: document.querySelector("#stateName"),
+      currentWork: document.querySelector("#currentWork"),
+      blockTime: document.querySelector("#blockTime"),
+      elapsed: document.querySelector("#elapsed"),
+      nextShift: document.querySelector("#nextShift"),
+      focusMode: document.querySelector("#focusMode"),
+      bestWork: document.querySelector("#bestWork"),
+      timingWindows: document.querySelector("#timingWindows"),
+      timeline: document.querySelector("#timeline"),
+      dayTotal: document.querySelector("#dayTotal"),
+      stateBand: document.querySelector(".state-band"),
+      nowPanel: document.querySelector(".now-panel")
+    };
+
+    function parseClock(raw) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(raw);
+      if (!match) return null;
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+      return hour * 60 + minute;
+    }
+
+    function formatClock(totalMinutes) {
+      const normalized = ((totalMinutes % minutesPerDay) + minutesPerDay) % minutesPerDay;
+      const hour = Math.floor(normalized / 60);
+      const minute = normalized % 60;
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    function formatDuration(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const remainder = minutes % 60;
+      if (hours && remainder) return `${hours}h ${remainder}m`;
+      if (hours) return `${hours}h`;
+      return `${remainder}m`;
+    }
+
+    function currentClockValue() {
+      const now = new Date();
+      return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    }
+
+    function elapsedFromWake(wakeMinutes, currentMinutes) {
+      const delta = currentMinutes - wakeMinutes;
+      return delta >= 0 ? delta : minutesPerDay + delta;
+    }
+
+    function targetNextWakeFromInput(wakeMinutes) {
+      const nextWake = parseClock(els.nextWakeTime.value);
+      if (nextWake === null) return null;
+      const candidate = clockTimeWithinDay(wakeMinutes, nextWake);
+      return candidate - wakeMinutes < 12 * 60 ? candidate + minutesPerDay : candidate;
+    }
+
+    function clockTimeWithinDay(wakeMinutes, clockMinutes) {
+      return clockMinutes >= wakeMinutes ? clockMinutes : clockMinutes + minutesPerDay;
+    }
+
+    function buildWindows(wakeMinutes, showOptional, targetNextWake) {
+      const sleepTemplate = windowTemplates.find((template) => template.id === "sleep");
+      const sleepStart = targetNextWake
+        ? targetNextWake - 9 * 60
+        : clockTimeWithinDay(wakeMinutes, sleepTemplate.fixedStartClock);
+      const sleepEnd = targetNextWake
+        ? targetNextWake - 8 * 60
+        : clockTimeWithinDay(wakeMinutes, sleepTemplate.fixedEndClock);
+
+      return windowTemplates
+        .filter((template) => showOptional || !template.optional)
+        .map((template) => {
+          const start = template.id === "sleep"
+            ? sleepStart
+            : typeof template.fixedStartClock === "number"
+            ? clockTimeWithinDay(wakeMinutes, template.fixedStartClock)
+            : template.relativeToSleep
+            ? sleepStart - template.startBeforeSleep
+            : wakeMinutes + template.startOffset;
+          const end = template.id === "sleep"
+            ? sleepEnd
+            : typeof template.fixedEndClock === "number"
+            ? clockTimeWithinDay(wakeMinutes, template.fixedEndClock)
+            : template.relativeToSleep
+            ? sleepStart - template.endBeforeSleep
+            : wakeMinutes + template.endOffset;
+
+          return {
+            ...template,
+            start,
+            end,
+            duration: end - start
+          };
+        })
+        .sort((a, b) => a.start - b.start || b.priority - a.priority);
+    }
+
+    function activeWindowsForCurrent(windows, absoluteCurrent) {
+      return windows
+        .filter((windowItem) => absoluteCurrent >= windowItem.start && absoluteCurrent < windowItem.end)
+        .sort((a, b) => b.priority - a.priority || a.end - b.end);
+    }
+
+    function nextWindow(windows, absoluteCurrent) {
+      const upcoming = windows.find((windowItem) => windowItem.start > absoluteCurrent);
+      if (upcoming) return upcoming;
+      return {
+        ...windows[0],
+        start: windows[0].start + minutesPerDay,
+        end: windows[0].end + minutesPerDay
+      };
+    }
+
+    function timeUntilBed(windows, absoluteCurrent) {
+      const sleepWindow = windows.find((windowItem) => windowItem.id === "sleep");
+      if (!sleepWindow) return "none";
+      if (absoluteCurrent >= sleepWindow.start && absoluteCurrent < sleepWindow.end) return "now";
+
+      const sleepStart = sleepWindow.start > absoluteCurrent
+        ? sleepWindow.start
+        : sleepWindow.start + minutesPerDay;
+      return formatDuration(sleepStart - absoluteCurrent);
+    }
+
+    function windowDependencies(windowItem) {
+      if (windowItem.dependencies?.length) return windowItem.dependencies;
+      if (windowItem.relativeToSleep) return ["Sleep"];
+      if (typeof windowItem.fixedStartClock === "number") return ["Wake time"];
+      return ["Wake time"];
+    }
+
+    function renderDependencies(windowItem) {
+      return `
+        <ul class="dependency-list" aria-label="${windowItem.label} dependencies">
+          ${windowDependencies(windowItem).map((dependency) => `<li>${dependency}</li>`).join("")}
+        </ul>
+      `;
+    }
+
+    function renderWindowCard(windowItem, absoluteCurrent, options = {}) {
+      const isOpen = absoluteCurrent >= windowItem.start && absoluteCurrent < windowItem.end;
+      const status = isOpen
+        ? `${formatDuration(windowItem.end - absoluteCurrent)} left`
+        : windowItem.start > absoluteCurrent
+        ? "upcoming"
+        : "closed";
+      const active = isOpen ? `<span class="window-tag" style="--window-color: ${windowItem.color}">open now</span>` : "";
+      const optional = windowItem.optional ? `<span class="window-tag" style="--window-color: ${windowItem.color}">optional</span>` : "";
+      const tags = active || optional ? `<div class="window-tags">${active}${optional}</div>` : "";
+      const group = options.showGroup ? `<span>${windowItem.group}</span>` : "";
+
+      return `
+        <li class="window-card ${isOpen ? "active" : ""}" style="--window-color: ${windowItem.color}">
+          <div class="window-card-head">
+            <strong>${windowItem.label}</strong>
+            ${group}
+          </div>
+          <span>${formatClock(windowItem.start)}-${formatClock(windowItem.end)} - ${status}</span>
+          ${renderDependencies(windowItem)}
+          <p>${windowItem.note}</p>
+          ${tags}
+        </li>
+      `;
+    }
+
+    function render() {
+      const wake = parseClock(els.wakeTime.value) ?? parseClock("06:00");
+      const targetNextWake = targetNextWakeFromInput(wake);
+      const daySummary = targetNextWake
+        ? `${formatClock(wake)} wake, ${formatClock(targetNextWake)} target next wake`
+        : `${formatClock(wake)} wake, cognitive state list`;
+      const current = parseClock(currentClockValue());
+      const elapsed = elapsedFromWake(wake, current);
+      const absoluteCurrent = wake + elapsed;
+      const windows = buildWindows(wake, els.showOptional.checked, targetNextWake)
+        .filter((windowItem) => windowItem.start < wake + minutesPerDay && windowItem.end > wake);
+      const activeWindows = activeWindowsForCurrent(windows, absoluteCurrent);
+
+      if (!windows.length) {
+        document.documentElement.style.setProperty("--state-color", "#626a66");
+        els.nowPanel.style.setProperty("--state-color", "#626a66");
+        els.stateBand.style.setProperty("--state-color", "#626a66");
+        els.stateName.textContent = "No states";
+        els.currentWork.textContent = "No configured cognitive states fall inside this wake cycle.";
+        els.blockTime.textContent = `${formatClock(wake)}-${formatClock(wake + minutesPerDay)}`;
+        els.elapsed.textContent = formatDuration(elapsed);
+        els.nextShift.textContent = "none";
+        els.focusMode.textContent = "none";
+        els.bestWork.innerHTML = "<li>Edit the state templates or adjust the wake time.</li>";
+        els.timingWindows.innerHTML = "";
+        els.dayTotal.textContent = daySummary;
+        els.timeline.innerHTML = "";
+        return;
+      }
+
+      const primary = activeWindows[0] || nextWindow(windows, absoluteCurrent);
+      const next = nextWindow(windows, absoluteCurrent);
+
+      document.documentElement.style.setProperty("--state-color", primary.color);
+      els.nowPanel.style.setProperty("--state-color", primary.color);
+      els.stateBand.style.setProperty("--state-color", primary.color);
+      els.stateName.textContent = activeWindows.length ? primary.label : "Between windows";
+      els.currentWork.textContent = activeWindows.length
+        ? primary.note
+        : `Next cognitive state: ${next.label} at ${formatClock(next.start)}.`;
+      els.blockTime.textContent = `${formatClock(primary.start)}-${formatClock(primary.end)}`;
+      els.elapsed.textContent = formatDuration(elapsed);
+      els.nextShift.textContent = next.start > absoluteCurrent
+        ? `${next.label} in ${formatDuration(next.start - absoluteCurrent)}`
+        : `${next.label} now`;
+      els.focusMode.textContent = timeUntilBed(windows, absoluteCurrent);
+      els.bestWork.innerHTML = primary.fits.map((item) => `<li>${item}</li>`).join("");
+
+      const secondaryWindows = activeWindows.filter((windowItem) => windowItem !== primary);
+      els.timingWindows.innerHTML = secondaryWindows.length
+        ? secondaryWindows.map((windowItem) => renderWindowCard(windowItem, absoluteCurrent)).join("")
+        : renderWindowCard(next, absoluteCurrent);
+
+      els.dayTotal.textContent = daySummary;
+      els.timeline.innerHTML = `
+        <ul class="window-list">
+          ${windows.map((windowItem) => renderWindowCard(windowItem, absoluteCurrent, { showGroup: true })).join("")}
+        </ul>
+      `;
+    }
+
+    els.wakeTime.addEventListener("input", render);
+    els.nextWakeTime.addEventListener("input", render);
+    els.showOptional.addEventListener("input", render);
+
+    render();
+    window.setInterval(render, 60 * 1000);
+  </script>
+</body>
+</html>
