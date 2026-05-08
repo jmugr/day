@@ -476,10 +476,6 @@
             Target next wake
             <input id="nextWakeTime" type="time">
           </label>
-          <label class="toggle">
-            <input id="showOptional" type="checkbox" checked>
-            Show optional states
-          </label>
         </div>
       </div>
     </header>
@@ -537,31 +533,15 @@
 
     const windowTemplates = [
       {
-        id: "sleep",
-        label: "Sleep",
-        group: "Cognitive recovery",
-        color: "#7a5a8c",
-        priority: 100,
-        fixedStartClock: 21 * 60,
-        fixedEndClock: 22 * 60,
-        dependencies: ["Wake time", "Target next wake"],
-        note: "The brain-off recovery window for memory consolidation, emotional reset, and tomorrow's baseline.",
-        fits: [
-          "Start wind-down before this opens",
-          "Low light, low stimulation, no new intense inputs",
-          "Set up the morning and let the day close"
-        ]
-      },
-      {
-        id: "wake-transition",
-        label: "Wake transition",
+        id: "ramp",
+        label: "Ramp",
         group: "0-1h 15m awake",
         color: "#626a66",
         priority: 60,
         startOffset: 0,
         endOffset: 75,
         dependencies: ["Wake time"],
-        note: "The nervous system is coming online; avoid spending the first clear minutes on reactive inputs.",
+        note: "The nervous system is coming online; keep the first clear minutes low-friction and intentional.",
         fits: [
           "Light setup, hydration, food, movement",
           "Review the day without opening inbox loops",
@@ -569,8 +549,8 @@
         ]
       },
       {
-        id: "prime-focus",
-        label: "Prime focus",
+        id: "peak",
+        label: "Peak",
         group: "1h 15m-4h awake",
         color: "#214f3c",
         priority: 90,
@@ -586,15 +566,15 @@
         ]
       },
       {
-        id: "executive-control",
-        label: "Executive control",
+        id: "flex",
+        label: "Flex",
         group: "4-7h awake",
         color: "#426a8d",
         priority: 76,
         startOffset: 240,
         endOffset: 420,
         dependencies: ["Wake time"],
-        note: "Still steady enough for tradeoffs and debugging, with a little less raw creative voltage.",
+        note: "Still steady enough for tradeoffs, debugging, and adaptive decisions, with a little less raw voltage.",
         fits: [
           "Code review and debugging",
           "Specs, tradeoffs, and sequencing",
@@ -602,98 +582,29 @@
         ]
       },
       {
-        id: "recovery-dip",
-        label: "Recovery dip",
-        group: "7-9h awake",
-        color: "#7a5a8c",
-        priority: 86,
-        startOffset: 420,
-        endOffset: 540,
-        optional: true,
-        dependencies: ["Wake time", "Caffeine timing"],
-        note: "A lower-output state where a short reset can protect the rest of the day.",
-        fits: [
-          "10-25 minute nap, NSDR, or eyes-closed rest",
-          "Walk, hydrate, eat, and reduce stimulation",
-          "Use second coffee carefully, far from sleep"
-        ]
-      },
-      {
-        id: "execution-bandwidth",
-        label: "Execution bandwidth",
-        group: "7-11h awake",
+        id: "maintain",
+        label: "Maintain",
+        group: "7h awake-bed minus 2h 30m",
         color: "#78904f",
         priority: 64,
         startOffset: 420,
-        endOffset: 660,
-        dependencies: ["Wake time", "Recovery dip"],
+        endBeforeSleep: 150,
+        dependencies: ["Wake time", "Sleep"],
         note: "The brain is better at moving known work than inventing the shape of the work.",
         fits: [
           "Implementation and follow-through",
           "Materials, checklists, and coordination",
           "Known next actions",
-          "Optional nicotine only if it tightens execution"
+          "Short reset if output starts to sag"
         ]
       },
       {
-        id: "social-reactive",
-        label: "Social and reactive bandwidth",
-        group: "9h 30m-13h awake",
+        id: "relax",
+        label: "Relax",
+        group: "2h 30m before sleep",
         color: "#b86948",
-        priority: 48,
-        startOffset: 570,
-        endOffset: 780,
-        dependencies: ["Wake time", "Prime focus protected"],
-        note: "Lower-cognitive work fits better here because the cost of interruption is less expensive.",
-        fits: [
-          "Meetings and inbox",
-          "Small commitments",
-          "Tasks that benefit from momentum more than insight"
-        ]
-      },
-      {
-        id: "body-drive",
-        label: "Body drive",
-        group: "Before sleep",
-        color: "#d3a642",
-        priority: 78,
-        relativeToSleep: true,
-        startBeforeSleep: 300,
-        endBeforeSleep: 150,
-        dependencies: ["Sleep"],
-        note: "A good physical activation state, leaving enough runway for the brain to come down before bed.",
-        fits: [
-          "Strength, conditioning, or hard walk",
-          "Shower and food afterward",
-          "Do not let it collide with wind-down"
-        ]
-      },
-      {
-        id: "inhibition-risk",
-        label: "Inhibition risk",
-        group: "Before sleep",
-        color: "#9a4f65",
-        priority: 30,
-        relativeToSleep: true,
-        startBeforeSleep: 330,
-        endBeforeSleep: 210,
-        optional: true,
-        dependencies: ["Sleep", "Next-day baseline"],
-        note: "A lower-friction state where alcohol or other dampening inputs can quietly steal from sleep quality.",
-        fits: [
-          "Social drink only, not a nightcap",
-          "Stop at least 3 hours before sleep",
-          "Hydrate and eat with it"
-        ]
-      },
-      {
-        id: "wind-down",
-        label: "Downshift",
-        group: "Before sleep",
-        color: "#626a66",
         priority: 74,
-        relativeToSleep: true,
-        startBeforeSleep: 90,
+        startBeforeSleep: 150,
         endBeforeSleep: 0,
         dependencies: ["Sleep"],
         note: "The cognitive off-ramp that makes the sleep window realistic.",
@@ -702,13 +613,28 @@
           "Stretching and low-stimulation conversation",
           "Tomorrow setup without re-opening the day"
         ]
+      },
+      {
+        id: "sleep",
+        label: "Sleep",
+        group: "Sleep",
+        color: "#7a5a8c",
+        priority: 100,
+        fixedStartClock: 21 * 60,
+        fixedEndClock: 22 * 60,
+        dependencies: ["Wake time", "Target next wake"],
+        note: "The brain-off recovery window for memory consolidation, emotional reset, and tomorrow's baseline.",
+        fits: [
+          "Start wind-down before this opens",
+          "Low light, low stimulation, no new intense inputs",
+          "Set up the morning and let the day close"
+        ]
       }
     ];
 
     const els = {
       wakeTime: document.querySelector("#wakeTime"),
       nextWakeTime: document.querySelector("#nextWakeTime"),
-      showOptional: document.querySelector("#showOptional"),
       stateName: document.querySelector("#stateName"),
       currentWork: document.querySelector("#currentWork"),
       blockTime: document.querySelector("#blockTime"),
@@ -768,7 +694,7 @@
       return clockMinutes >= wakeMinutes ? clockMinutes : clockMinutes + minutesPerDay;
     }
 
-    function buildWindows(wakeMinutes, showOptional, targetNextWake) {
+    function buildWindows(wakeMinutes, targetNextWake) {
       const sleepTemplate = windowTemplates.find((template) => template.id === "sleep");
       const sleepStart = targetNextWake
         ? targetNextWake - 9 * 60
@@ -778,20 +704,19 @@
         : clockTimeWithinDay(wakeMinutes, sleepTemplate.fixedEndClock);
 
       return windowTemplates
-        .filter((template) => showOptional || !template.optional)
         .map((template) => {
           const start = template.id === "sleep"
             ? sleepStart
             : typeof template.fixedStartClock === "number"
             ? clockTimeWithinDay(wakeMinutes, template.fixedStartClock)
-            : template.relativeToSleep
+            : typeof template.startBeforeSleep === "number"
             ? sleepStart - template.startBeforeSleep
             : wakeMinutes + template.startOffset;
           const end = template.id === "sleep"
             ? sleepEnd
             : typeof template.fixedEndClock === "number"
             ? clockTimeWithinDay(wakeMinutes, template.fixedEndClock)
-            : template.relativeToSleep
+            : typeof template.endBeforeSleep === "number"
             ? sleepStart - template.endBeforeSleep
             : wakeMinutes + template.endOffset;
 
@@ -834,7 +759,7 @@
 
     function windowDependencies(windowItem) {
       if (windowItem.dependencies?.length) return windowItem.dependencies;
-      if (windowItem.relativeToSleep) return ["Sleep"];
+      if (typeof windowItem.startBeforeSleep === "number" || typeof windowItem.endBeforeSleep === "number") return ["Sleep"];
       if (typeof windowItem.fixedStartClock === "number") return ["Wake time"];
       return ["Wake time"];
     }
@@ -855,8 +780,7 @@
         ? "upcoming"
         : "closed";
       const active = isOpen ? `<span class="window-tag" style="--window-color: ${windowItem.color}">open now</span>` : "";
-      const optional = windowItem.optional ? `<span class="window-tag" style="--window-color: ${windowItem.color}">optional</span>` : "";
-      const tags = active || optional ? `<div class="window-tags">${active}${optional}</div>` : "";
+      const tags = active ? `<div class="window-tags">${active}</div>` : "";
       const group = options.showGroup ? `<span>${windowItem.group}</span>` : "";
 
       return `
@@ -882,7 +806,7 @@
       const current = parseClock(currentClockValue());
       const elapsed = elapsedFromWake(wake, current);
       const absoluteCurrent = wake + elapsed;
-      const windows = buildWindows(wake, els.showOptional.checked, targetNextWake)
+      const windows = buildWindows(wake, targetNextWake)
         .filter((windowItem) => windowItem.start < wake + minutesPerDay && windowItem.end > wake);
       const activeWindows = activeWindowsForCurrent(windows, absoluteCurrent);
 
@@ -936,8 +860,6 @@
 
     els.wakeTime.addEventListener("input", render);
     els.nextWakeTime.addEventListener("input", render);
-    els.showOptional.addEventListener("input", render);
-
     render();
     window.setInterval(render, 60 * 1000);
   </script>

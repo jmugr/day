@@ -8,11 +8,10 @@ A small static website for mapping the current time against cognitive and body-s
 - Supports an optional target next wake time to calculate the optimal sleep window.
 - Shows current component strength based on the local machine clock.
 - Shows the sleep window as a subtle band and stops the graph at the end of that sleep window.
-- Tracks states like wake transition, prime focus, executive control, recovery dip, execution bandwidth, social/reactive bandwidth, downshift, and sleep.
-- Shows dependencies inside each window card, such as wake time, sleep, caffeine timing, and next-day baseline.
-- Lets optional windows be shown or hidden.
+- Tracks the cognitive state buckets: Ramp, Peak, Flex, Maintain, Relax, and Sleep.
+- Shows dependencies inside each window card, such as wake time, sleep, target next wake, and optional first coffee.
 - Displays every cognitive state as a sorted list of cards.
-- Marks currently open and optional states directly on the list.
+- Marks currently open states directly on the list.
 - Keeps the cognitive state card map available at `cognitive-map.html`.
 
 ## Running Locally
@@ -53,7 +52,7 @@ The window list covers the wake cycle from `Wake` to the same clock time the nex
 - With a target next wake, sleep becomes the 8-9 hour window before that target.
 - Target next wake times close after the wake time are treated as tomorrow's wake. For example, `Wake 05:15` and `Target next wake 05:16` means tomorrow at `05:16`, so sleep is `20:16-21:16`.
 
-All states render as full cards in chronological order. Overlapping states stay visible as separate cards.
+All buckets render as full cards in chronological order.
 
 ## Current Panel
 
@@ -72,11 +71,11 @@ Dependency labels are shown as pills inside each window card.
 
 Explicit dependency examples:
 
+- `Ramp`: `Wake time`
+- `Peak`: `Wake time`, `Optional first coffee`
+- `Maintain`: `Wake time`, `Sleep`
+- `Relax`: `Sleep`
 - `Sleep`: `Wake time`, `Target next wake`
-- `Prime focus`: `Wake time`, `Optional first coffee`
-- `Recovery dip`: `Wake time`, `Caffeine timing`
-- `Execution bandwidth`: `Wake time`, `Recovery dip`
-- `Downshift`: `Sleep`
 
 Windows without explicit `dependencies` infer them from their timing rule: sleep-relative windows depend on `Sleep`, and wake-relative or fixed clock windows depend on `Wake time`.
 
@@ -92,7 +91,7 @@ Each window has:
 - `priority`: which active window wins the current panel.
 - `startOffset` / `endOffset`: minutes after wake.
 - `fixedStartClock` / `fixedEndClock`: fixed clock-time windows, such as the default sleep window from 9-10pm.
-- `relativeToSleep`, `startBeforeSleep`, and `endBeforeSleep`: calculate windows backward from the sleep window.
+- `startBeforeSleep` and `endBeforeSleep`: calculate one or both window edges backward from the sleep window.
 - `dependencies`: optional labels shown on each card; omitted windows infer dependencies from wake-time or sleep-window timing.
 - `note`: guidance shown in the current panel.
 - `fits`: recommended activities for that window.
@@ -101,8 +100,8 @@ Example:
 
 ```js
 {
-  id: "prime-focus",
-  label: "Prime focus",
+  id: "peak",
+  label: "Peak",
   group: "1h 15m-4h awake",
   color: "#214f3c",
   priority: 90,
